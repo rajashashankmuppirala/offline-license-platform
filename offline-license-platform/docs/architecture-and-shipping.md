@@ -1,8 +1,7 @@
 # Offline License Server POC: architecture, shipped artifacts, and demo narrative
 
 This document is the end-to-end guide to what is shipped in the POC, how the pieces fit together, and what can be
-demonstrated on a single developer machine. It complements the task-oriented [poc-demo.md](poc-demo.md), which contains
-the exact command transcript.
+demonstrated on a single developer machine. It includes the local demo commands and expected workflow.
 
 ## What the POC is
 
