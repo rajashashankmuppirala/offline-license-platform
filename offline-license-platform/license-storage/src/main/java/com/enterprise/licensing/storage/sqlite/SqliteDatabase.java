@@ -26,9 +26,13 @@ public final class SqliteDatabase implements AutoCloseable {
         migrate();
     }
 
-    public DataSource dataSource() { return dataSource; }
+    public DataSource dataSource() {
+        return dataSource;
+    }
 
-    public boolean transactionActive() { return transactionConnection.get() != null; }
+    public boolean transactionActive() {
+        return transactionConnection.get() != null;
+    }
 
     public void migrate() {
         Flyway.configure().dataSource(dataSource).locations("classpath:db/migration").load().migrate();
@@ -39,7 +43,9 @@ public final class SqliteDatabase implements AutoCloseable {
                 statement.execute("PRAGMA foreign_keys=ON");
                 statement.execute("PRAGMA busy_timeout=5000");
                 return null;
-            } catch (SQLException e) { throw new SqliteStorageException("Unable to configure SQLite", e); }
+            } catch (SQLException e) {
+                throw new SqliteStorageException("Unable to configure SQLite", e);
+            }
         });
     }
 
@@ -52,10 +58,21 @@ public final class SqliteDatabase implements AutoCloseable {
                 statement.execute("PRAGMA busy_timeout=5000");
             }
             return work.apply(connection);
-        } catch (SQLException e) { throw new SqliteStorageException("SQLite operation failed", e); }
+        } catch (SQLException e) {
+            throw new SqliteStorageException("SQLite operation failed", e);
+        }
     }
 
-    Connection bind(Connection connection) { transactionConnection.set(connection); return connection; }
-    void unbind() { transactionConnection.remove(); }
-    @Override public void close() { }
+    Connection bind(Connection connection) {
+        transactionConnection.set(connection);
+        return connection;
+    }
+
+    void unbind() {
+        transactionConnection.remove();
+    }
+
+    @Override
+    public void close() {
+    }
 }

@@ -7,6 +7,7 @@ import com.enterprise.licensing.engine.user.UserLicenseRepository;
 import com.enterprise.licensing.model.AgentStatus;
 import com.enterprise.licensing.model.EnvironmentEntitlement;
 import com.enterprise.licensing.model.InstanceState;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +20,10 @@ public final class RepositoryRenewalImpactAssessment implements RenewalImpactAss
 
     public RepositoryRenewalImpactAssessment(ProductInstanceRepository instances, UserLicenseRepository users,
                                              AiLicenseRepository agents, MeteringRepository meters) {
-        this.instances = instances; this.users = users; this.agents = agents; this.meters = meters;
+        this.instances = instances;
+        this.users = users;
+        this.agents = agents;
+        this.meters = meters;
     }
 
     @Override

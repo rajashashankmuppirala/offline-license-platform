@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.enterprise.licensing.client.availability.LicenseAvailabilityPolicy;
 import com.enterprise.licensing.model.LicenseOperation;
+
 import java.util.EnumSet;
+
 import org.junit.jupiter.api.Test;
 
 class LicenseAvailabilityPolicyTest {

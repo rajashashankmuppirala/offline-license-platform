@@ -6,6 +6,7 @@ import com.enterprise.licensing.engine.identity.LicenseServerIdentityService;
 import com.enterprise.licensing.engine.ports.TimeSource;
 import com.enterprise.licensing.model.LicenseReasonCode;
 import com.enterprise.licensing.model.SignedEnvelope;
+
 import java.security.PublicKey;
 import java.time.Instant;
 import java.util.function.Supplier;
@@ -37,15 +38,22 @@ public final class ActivationService {
                              Supplier<PublicKey> vendorPublicKey, LicenseServerIdentityService identityService,
                              LicenseRepository repository, TimeSource timeSource,
                              RenewalImpactAssessment renewalImpact) {
-        this.licenseVerifier=licenseVerifier;this.activationVerifier=activationVerifier;this.vendorPublicKey=vendorPublicKey;
-        this.identityService=identityService;this.repository=repository;this.timeSource=timeSource;
-        this.renewalImpact=renewalImpact;
+        this.licenseVerifier = licenseVerifier;
+        this.activationVerifier = activationVerifier;
+        this.vendorPublicKey = vendorPublicKey;
+        this.identityService = identityService;
+        this.repository = repository;
+        this.timeSource = timeSource;
+        this.renewalImpact = renewalImpact;
     }
 
     public ActivationImportResult importArtifacts(SignedEnvelope licenseEnvelope, SignedEnvelope activationEnvelope) {
         PublicKey trustedVendorKey;
-        try { trustedVendorKey = vendorPublicKey.get(); }
-        catch (RuntimeException e) { return ActivationImportResult.denied(LicenseReasonCode.LICENSE_SIGNATURE_INVALID); }
+        try {
+            trustedVendorKey = vendorPublicKey.get();
+        } catch (RuntimeException e) {
+            return ActivationImportResult.denied(LicenseReasonCode.LICENSE_SIGNATURE_INVALID);
+        }
         var verifiedLicense = licenseVerifier.verify(licenseEnvelope, trustedVendorKey);
         if (!verifiedLicense.valid()) return ActivationImportResult.denied(verifiedLicense.reasonCode());
         var license = verifiedLicense.license();
@@ -57,9 +65,12 @@ public final class ActivationService {
                     && !licenseEnvelope.payload().equals(current.licenseEnvelope().payload()))
                 return ActivationImportResult.denied(LicenseReasonCode.LICENSE_FORMAT_INVALID);
         }
-        if (repository.isRevoked("COMMERCIAL_LICENSE", license.licenseId(), now)) return ActivationImportResult.denied(LicenseReasonCode.LICENSE_REVOKED);
-        if (now.isBefore(license.subscription().validFrom())) return ActivationImportResult.denied(LicenseReasonCode.LICENSE_NOT_YET_VALID);
-        if (now.isAfter(license.subscription().graceUntil())) return ActivationImportResult.denied(LicenseReasonCode.LICENSE_EXPIRED);
+        if (repository.isRevoked("COMMERCIAL_LICENSE", license.licenseId(), now))
+            return ActivationImportResult.denied(LicenseReasonCode.LICENSE_REVOKED);
+        if (now.isBefore(license.subscription().validFrom()))
+            return ActivationImportResult.denied(LicenseReasonCode.LICENSE_NOT_YET_VALID);
+        if (now.isAfter(license.subscription().graceUntil()))
+            return ActivationImportResult.denied(LicenseReasonCode.LICENSE_EXPIRED);
         if (license.activation().required() && activationEnvelope == null) {
             var previous = current;
             var identity = identityService.publicIdentity();
@@ -76,7 +87,8 @@ public final class ActivationService {
             }
             var priorVerification = activationVerifier.verify(previous.activationEnvelope(), trustedVendorKey);
             if (!priorVerification.valid()) return ActivationImportResult.denied(priorVerification.reasonCode());
-            if (repository.isRevoked("ACTIVATION_CERTIFICATE", previous.activation().activationId(), now)) return ActivationImportResult.denied(LicenseReasonCode.LICENSE_REVOKED);
+            if (repository.isRevoked("ACTIVATION_CERTIFICATE", previous.activation().activationId(), now))
+                return ActivationImportResult.denied(LicenseReasonCode.LICENSE_REVOKED);
             repository.activate(identity, license, licenseEnvelope, previous.activation(), previous.activationEnvelope(), now);
             return ActivationImportResult.accepted(repository.active().orElseThrow(), renewalImpact.warnings(license, now));
         }
@@ -94,8 +106,10 @@ public final class ActivationService {
         if (repository.isRevoked("ACTIVATION_CERTIFICATE", certificate.activationId(), now)) {
             return ActivationImportResult.denied(LicenseReasonCode.LICENSE_REVOKED);
         }
-        if (certificate.issuedAt().isAfter(now.plusSeconds(300))) return ActivationImportResult.denied(LicenseReasonCode.LICENSE_NOT_YET_VALID);
-        if (!certificate.permittedPolicy().equals(license.activation())) return ActivationImportResult.denied(LicenseReasonCode.LICENSE_SERVER_IDENTITY_MISMATCH);
+        if (certificate.issuedAt().isAfter(now.plusSeconds(300)))
+            return ActivationImportResult.denied(LicenseReasonCode.LICENSE_NOT_YET_VALID);
+        if (!certificate.permittedPolicy().equals(license.activation()))
+            return ActivationImportResult.denied(LicenseReasonCode.LICENSE_SERVER_IDENTITY_MISMATCH);
 
         repository.activate(identity, license, licenseEnvelope, certificate, activationEnvelope, now);
         return ActivationImportResult.accepted(repository.active().orElseThrow(), renewalImpact.warnings(license, now));

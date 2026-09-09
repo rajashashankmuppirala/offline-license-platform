@@ -9,24 +9,29 @@ import com.enterprise.licensing.storage.repository.SqliteProductInstanceReposito
 import com.enterprise.licensing.storage.sqlite.SqliteDatabase;
 import com.enterprise.licensing.storage.sqlite.SqliteImmediateTransactionRunner;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.api.io.TempDir;
 
 class EnvironmentRegistrationRaceTest {
-    @TempDir Path temp;
+    private final java.security.KeyPair key = Ed25519Keys.generate();
+    @TempDir
+    Path temp;
 
     static Stream<EnvironmentType> governedTypes() {
         return Stream.of(EnvironmentType.PRODUCTION, EnvironmentType.UAT, EnvironmentType.QA,
                 EnvironmentType.DEVELOPMENT, EnvironmentType.OTHER);
     }
 
-    @ParameterizedTest @MethodSource("governedTypes")
+    @ParameterizedTest
+    @MethodSource("governedTypes")
     void exactlyOneFinalEnvironmentRegistrationWins(EnvironmentType type) {
         var database = new SqliteDatabase(temp.resolve(type.name() + ".db"));
         var repository = new SqliteProductInstanceRepository(database, new SqliteImmediateTransactionRunner(database), new ObjectMapper());
@@ -38,10 +43,12 @@ class EnvironmentRegistrationRaceTest {
                 .extracting(InstanceRegistrationResult::reasonCode).isEqualTo(LicenseReasonCode.ENVIRONMENT_LIMIT_EXCEEDED);
     }
 
-    private final java.security.KeyPair key = Ed25519Keys.generate();
     private InstanceRegistrationRequest request(EnvironmentType type, String id) {
         return new InstanceRegistrationRequest(id, new EncodedPublicKey("Ed25519", "X.509", Ed25519Keys.encodePublic(key.getPublic())),
                 ProductId.VALIDATOR, DeploymentType.KUBERNETES, type, "1.0", Map.of());
     }
-    private String fingerprint() { return Ed25519Keys.fingerprint(key.getPublic()); }
+
+    private String fingerprint() {
+        return Ed25519Keys.fingerprint(key.getPublic());
+    }
 }

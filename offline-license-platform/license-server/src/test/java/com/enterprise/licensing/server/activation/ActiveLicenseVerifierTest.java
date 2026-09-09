@@ -23,19 +23,22 @@ import com.enterprise.licensing.storage.sqlite.SqliteImmediateTransactionRunner;
 import com.enterprise.licensing.testkit.LicenseFixtures;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import java.time.Instant;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ActiveLicenseVerifierTest {
-    @TempDir Path temp;
     private final Instant now = Instant.parse("2026-01-01T00:00:00Z");
     private final ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
     private final CanonicalJson canonical = new CanonicalJson(mapper);
+    @TempDir
+    Path temp;
 
     @Test
     void requiresActivationAndRejectsAlteredPersistedProjection() {
@@ -133,5 +136,6 @@ class ActiveLicenseVerifierTest {
     }
 
     private record Fixture(java.security.KeyPair vendor, ActiveLicenseState state,
-                           ActiveLicenseVerifier verifier) {}
+                           ActiveLicenseVerifier verifier) {
+    }
 }

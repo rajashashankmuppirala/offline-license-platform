@@ -9,6 +9,7 @@ import com.enterprise.licensing.model.LicenseServerIdentity;
 import com.enterprise.licensing.storage.sqlite.SqliteStorageException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -31,6 +32,12 @@ public final class SoftwareIdentityProvider implements IdentityProvider {
         this.identityFile = identityFile.toAbsolutePath().normalize();
         this.timeSource = timeSource;
         this.metadata = metadata == null ? Map.of() : Map.copyOf(metadata);
+    }
+
+    private static void restrict(Path file) throws Exception {
+        try {
+            Files.setPosixFilePermissions(file, OWNER_ONLY);
+        } catch (UnsupportedOperationException ignored) { /* Platform ACLs apply on non-POSIX filesystems. */ }
     }
 
     @Override
@@ -100,12 +107,8 @@ public final class SoftwareIdentityProvider implements IdentityProvider {
         return new IdentityMaterial(publicIdentity, publicKey, privateKey);
     }
 
-    private static void restrict(Path file) throws Exception {
-        try { Files.setPosixFilePermissions(file, OWNER_ONLY); }
-        catch (UnsupportedOperationException ignored) { /* Platform ACLs apply on non-POSIX filesystems. */ }
-    }
-
     private record PersistedIdentity(UUID licenseServerId, String algorithm, String publicKey, String privateKey,
                                      String publicKeyFingerprint, Instant createdAt,
-                                     Map<String, String> installationMetadata) {}
+                                     Map<String, String> installationMetadata) {
+    }
 }

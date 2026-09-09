@@ -10,7 +10,8 @@ public final class EnvelopeSupport {
     public static final String ALGORITHM = "Ed25519";
     private static final byte[] DOMAIN = "OFFLINE-LICENSE-SIGNED-ENVELOPE-V1".getBytes(StandardCharsets.US_ASCII);
 
-    private EnvelopeSupport() {}
+    private EnvelopeSupport() {
+    }
 
     public static byte[] signatureInput(ArtifactType type, String schemaVersion, String algorithm,
                                         String keyId, byte[] canonicalPayload) {
@@ -23,7 +24,9 @@ public final class EnvelopeSupport {
             writePart(out, keyId.getBytes(StandardCharsets.US_ASCII));
             writePart(out, canonicalPayload);
             return out.toByteArray();
-        } catch (Exception e) { throw new CryptoException("Unable to build signature input", e); }
+        } catch (Exception e) {
+            throw new CryptoException("Unable to build signature input", e);
+        }
     }
 
     private static void writePart(ByteArrayOutputStream out, byte[] value) {

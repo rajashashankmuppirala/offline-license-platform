@@ -1,6 +1,7 @@
 package com.enterprise.licensing.model;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -10,6 +11,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 public final class LegacyLicenseMapper {
+    private static String normalize(String value) {
+        return value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
+    }
+
+    private static void require(JsonNode root, String... names) {
+        for (String name : names)
+            if (!root.hasNonNull(name) || root.path(name).asText().isBlank())
+                throw new IllegalArgumentException("Missing legacy field: " + name);
+    }
+
     public CommercialLicense map(JsonNode root, CommercialLicenseJsonCodec.LegacyDefaults defaults) {
         require(root, "companyName", "contactEmail", "startDate", "endDate");
         var products = new ArrayList<ProductEntitlement>();
@@ -31,14 +42,5 @@ public final class LegacyLicenseMapper {
                 subscription, defaults.activationPolicy(), List.of(),
                 new UserEntitlement(root.path("totalNamedUsers").asInt(0), root.path("concurrentUser").asInt(0), categories),
                 products, new AIEntitlement(false, 0, 0, Set.of(), List.of()), subscription.validFrom(), 1, 1, Set.of());
-    }
-
-    private static String normalize(String value) {
-        return value.trim().toUpperCase(Locale.ROOT).replace('-', '_').replace(' ', '_');
-    }
-
-    private static void require(JsonNode root, String... names) {
-        for (String name : names) if (!root.hasNonNull(name) || root.path(name).asText().isBlank())
-            throw new IllegalArgumentException("Missing legacy field: " + name);
     }
 }

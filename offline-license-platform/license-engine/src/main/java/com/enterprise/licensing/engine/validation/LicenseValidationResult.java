@@ -1,1 +1,13 @@
-package com.enterprise.licensing.engine.validation;import com.enterprise.licensing.model.LicenseReasonCode;public record LicenseValidationResult(boolean allowed,boolean grace,LicenseReasonCode reasonCode){public static LicenseValidationResult allowed(boolean grace){return new LicenseValidationResult(true,grace,grace?LicenseReasonCode.LICENSE_GRACE_PERIOD:LicenseReasonCode.LICENSE_VALID);}public static LicenseValidationResult denied(LicenseReasonCode reason){return new LicenseValidationResult(false,false,reason);}}
+package com.enterprise.licensing.engine.validation;
+
+import com.enterprise.licensing.model.LicenseReasonCode;
+
+public record LicenseValidationResult(boolean allowed, boolean grace, LicenseReasonCode reasonCode) {
+    public static LicenseValidationResult allowed(boolean grace) {
+        return new LicenseValidationResult(true, grace, grace ? LicenseReasonCode.LICENSE_GRACE_PERIOD : LicenseReasonCode.LICENSE_VALID);
+    }
+
+    public static LicenseValidationResult denied(LicenseReasonCode reason) {
+        return new LicenseValidationResult(false, false, reason);
+    }
+}

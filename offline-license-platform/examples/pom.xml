@@ -1,1 +1,16 @@
-<?xml version="1.0" encoding="UTF-8"?><project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><parent><groupId>com.enterprise.licensing</groupId><artifactId>offline-license-platform</artifactId><version>1.0.0-SNAPSHOT</version></parent><artifactId>examples</artifactId><packaging>pom</packaging><modules><module>sample-product</module><module>tomcat-example</module><module>kubernetes-example</module></modules></project>
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.enterprise.licensing</groupId>
+        <artifactId>offline-license-platform</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+    <artifactId>examples</artifactId>
+    <packaging>pom</packaging>
+    <modules>
+        <module>sample-product</module>
+        <module>tomcat-example</module>
+        <module>kubernetes-example</module>
+    </modules>
+</project>

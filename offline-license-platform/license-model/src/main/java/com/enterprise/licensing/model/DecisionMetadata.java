@@ -5,7 +5,8 @@ import java.util.UUID;
 
 public record DecisionMetadata(UUID decisionId, Instant decidedAt, String correlationId) {
     public DecisionMetadata {
-        if (decisionId == null || decidedAt == null) throw new IllegalArgumentException("decision metadata is required");
+        if (decisionId == null || decidedAt == null)
+            throw new IllegalArgumentException("decision metadata is required");
         correlationId = Validation.required(correlationId, "correlationId");
     }
 }

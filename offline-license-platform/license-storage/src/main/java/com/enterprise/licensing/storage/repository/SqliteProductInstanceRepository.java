@@ -8,6 +8,7 @@ import com.enterprise.licensing.storage.sqlite.SqliteDatabase;
 import com.enterprise.licensing.storage.sqlite.SqliteStorageException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -16,13 +17,23 @@ import java.util.Map;
 import java.util.Optional;
 
 public final class SqliteProductInstanceRepository implements ProductInstanceRepository {
-    private final SqliteDatabase database; private final TransactionRunner transactions; private final ObjectMapper mapper;
+    private final SqliteDatabase database;
+    private final TransactionRunner transactions;
+    private final ObjectMapper mapper;
+
     public SqliteProductInstanceRepository(SqliteDatabase database, TransactionRunner transactions, ObjectMapper mapper) {
-        this.database = database; this.transactions = transactions; this.mapper = mapper;
+        this.database = database;
+        this.transactions = transactions;
+        this.mapper = mapper;
     }
 
-    @Override public InstanceRegistrationResult register(InstanceRegistrationRequest request, String fingerprint,
-                                                          int environmentLimit, int activeProductionClassLimit, Instant now) {
+    private static boolean productionClass(EnvironmentType type) {
+        return type == EnvironmentType.PRODUCTION || type == EnvironmentType.DISASTER_RECOVERY;
+    }
+
+    @Override
+    public InstanceRegistrationResult register(InstanceRegistrationRequest request, String fingerprint,
+                                               int environmentLimit, int activeProductionClassLimit, Instant now) {
         return transactions.write(() -> {
             var existing = findInternal(request.instanceId());
             if (existing.isPresent()) {
@@ -30,7 +41,8 @@ public final class SqliteProductInstanceRepository implements ProductInstanceRep
                 boolean same = value.publicKeyFingerprint().equals(fingerprint) && value.productId().equals(request.productId())
                         && value.environmentType() == request.environmentType() && value.deploymentType() == request.deploymentType();
                 if (!same) return InstanceRegistrationResult.denied(LicenseReasonCode.INSTANCE_AUTHENTICATION_FAILED);
-                if (value.state() == InstanceState.DECOMMISSIONED) return InstanceRegistrationResult.denied(LicenseReasonCode.INVALID_REQUEST);
+                if (value.state() == InstanceState.DECOMMISSIONED)
+                    return InstanceRegistrationResult.denied(LicenseReasonCode.INVALID_REQUEST);
                 return InstanceRegistrationResult.accepted(value);
             }
             if (count("SELECT count(*) FROM product_instance WHERE environment_type=? AND state<>'DECOMMISSIONED'", request.environmentType().name()) >= environmentLimit)
@@ -46,20 +58,27 @@ public final class SqliteProductInstanceRepository implements ProductInstanceRep
         });
     }
 
-    @Override public Optional<RegisteredProductInstance> find(String instanceId) {
+    @Override
+    public Optional<RegisteredProductInstance> find(String instanceId) {
         return transactions.read(() -> findInternal(instanceId));
     }
 
-    @Override public List<RegisteredProductInstance> list() {
+    @Override
+    public List<RegisteredProductInstance> list() {
         return transactions.read(() -> database.withConnection(connection -> {
             try (var statement = connection.prepareStatement("SELECT * FROM product_instance ORDER BY registered_at,instance_id"); var result = statement.executeQuery()) {
-                var values = new ArrayList<RegisteredProductInstance>(); while (result.next()) values.add(map(result)); return List.copyOf(values);
-            } catch (Exception e) { throw new SqliteStorageException("Unable to list product instances", e); }
+                var values = new ArrayList<RegisteredProductInstance>();
+                while (result.next()) values.add(map(result));
+                return List.copyOf(values);
+            } catch (Exception e) {
+                throw new SqliteStorageException("Unable to list product instances", e);
+            }
         }));
     }
 
-    @Override public InstanceRegistrationResult transition(String instanceId, InstanceState expected, InstanceState target,
-                                                             int activeProductionClassLimit, Instant now, boolean force) {
+    @Override
+    public InstanceRegistrationResult transition(String instanceId, InstanceState expected, InstanceState target,
+                                                 int activeProductionClassLimit, Instant now, boolean force) {
         return transactions.write(() -> {
             var current = findInternal(instanceId).orElse(null);
             if (current == null) return InstanceRegistrationResult.denied(LicenseReasonCode.INSTANCE_NOT_REGISTERED);
@@ -117,8 +136,13 @@ public final class SqliteProductInstanceRepository implements ProductInstanceRep
     private Optional<RegisteredProductInstance> findInternal(String instanceId) {
         return database.withConnection(connection -> {
             try (var statement = connection.prepareStatement("SELECT * FROM product_instance WHERE instance_id=?")) {
-                statement.setString(1, instanceId); try (var result = statement.executeQuery()) { return result.next() ? Optional.of(map(result)) : Optional.empty(); }
-            } catch (Exception e) { throw new SqliteStorageException("Unable to read product instance", e); }
+                statement.setString(1, instanceId);
+                try (var result = statement.executeQuery()) {
+                    return result.next() ? Optional.of(map(result)) : Optional.empty();
+                }
+            } catch (Exception e) {
+                throw new SqliteStorageException("Unable to read product instance", e);
+            }
         });
     }
 
@@ -128,16 +152,19 @@ public final class SqliteProductInstanceRepository implements ProductInstanceRep
                 result.getString("public_key_fingerprint"), new ProductId(result.getString("product_id")), DeploymentType.valueOf(result.getString("deployment_type")),
                 EnvironmentType.valueOf(result.getString("environment_type")), result.getString("application_version"), InstanceState.valueOf(result.getString("state")),
                 Instant.parse(result.getString("registered_at")), Instant.parse(result.getString("updated_at")),
-                decommissioned == null ? null : Instant.parse(decommissioned), mapper.readValue(result.getString("metadata_json"), new TypeReference<Map<String,String>>() {}));
+                decommissioned == null ? null : Instant.parse(decommissioned), mapper.readValue(result.getString("metadata_json"), new TypeReference<Map<String, String>>() {
+        }));
     }
 
     private int activeProductionCount() {
         return count("SELECT count(*) FROM product_instance WHERE environment_type IN ('PRODUCTION','DISASTER_RECOVERY') AND state='ACTIVE'");
     }
+
     private boolean hasLiveDependents(String id, Instant now) {
         return count("SELECT (SELECT count(*) FROM user_lease WHERE instance_id=? AND released_at IS NULL AND revoked_at IS NULL AND expires_at>?) + (SELECT count(*) FROM agent_lease WHERE instance_id=? AND released_at IS NULL AND revoked_at IS NULL AND expires_at>?)",
                 id, now.toString(), id, now.toString()) > 0;
     }
+
     private void revokeDependents(String instanceId, Instant now) {
         execute("UPDATE user_lease SET revoked_at=? WHERE instance_id=? AND released_at IS NULL AND revoked_at IS NULL AND expires_at>?",
                 now.toString(), instanceId, now.toString());
@@ -146,16 +173,37 @@ public final class SqliteProductInstanceRepository implements ProductInstanceRep
         execute("UPDATE cached_entitlement_issue SET revoked_at=? WHERE instance_id=? AND revoked_at IS NULL",
                 now.toString(), instanceId);
     }
-    private static boolean productionClass(EnvironmentType type) { return type == EnvironmentType.PRODUCTION || type == EnvironmentType.DISASTER_RECOVERY; }
+
     private int count(String sql, Object... values) {
-        return database.withConnection(connection -> { try (var statement = connection.prepareStatement(sql)) {
-            for (int i=0;i<values.length;i++) statement.setObject(i+1, values[i]); try (var result=statement.executeQuery()) { return result.getInt(1); }
-        } catch (Exception e) { throw new SqliteStorageException("Unable to count instances", e); }});
+        return database.withConnection(connection -> {
+            try (var statement = connection.prepareStatement(sql)) {
+                for (int i = 0; i < values.length; i++) statement.setObject(i + 1, values[i]);
+                try (var result = statement.executeQuery()) {
+                    return result.getInt(1);
+                }
+            } catch (Exception e) {
+                throw new SqliteStorageException("Unable to count instances", e);
+            }
+        });
     }
+
     private void execute(String sql, Object... values) {
-        database.withConnection(connection -> { try (var statement=connection.prepareStatement(sql)) {
-            for(int i=0;i<values.length;i++) statement.setObject(i+1, values[i]); statement.executeUpdate(); return null;
-        } catch(Exception e){ throw new SqliteStorageException("Unable to update product instance", e); }});
+        database.withConnection(connection -> {
+            try (var statement = connection.prepareStatement(sql)) {
+                for (int i = 0; i < values.length; i++) statement.setObject(i + 1, values[i]);
+                statement.executeUpdate();
+                return null;
+            } catch (Exception e) {
+                throw new SqliteStorageException("Unable to update product instance", e);
+            }
+        });
     }
-    private String json(Object value) { try { return mapper.writeValueAsString(value); } catch(Exception e){ throw new SqliteStorageException("Unable to encode metadata", e); } }
+
+    private String json(Object value) {
+        try {
+            return mapper.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new SqliteStorageException("Unable to encode metadata", e);
+        }
+    }
 }

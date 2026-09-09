@@ -2,6 +2,7 @@ package com.enterprise.licensing.client.cache;
 
 import com.enterprise.licensing.crypto.EnvelopeJsonCodec;
 import com.enterprise.licensing.model.SignedEnvelope;
+
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -39,6 +40,14 @@ public final class FileEntitlementCache {
                     MessageDigest.getInstance("SHA-256").digest(installationKeyMaterial.clone()), "AES");
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to derive cache encryption key", exception);
+        }
+    }
+
+    private static void restrict(Path path) throws Exception {
+        try {
+            Files.setPosixFilePermissions(path, OWNER_ONLY);
+        } catch (UnsupportedOperationException ignored) {
+            // The platform does not expose POSIX permissions.
         }
     }
 
@@ -87,14 +96,6 @@ public final class FileEntitlementCache {
             return Optional.of(codec.read(new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8)));
         } catch (Exception ignored) {
             return Optional.empty();
-        }
-    }
-
-    private static void restrict(Path path) throws Exception {
-        try {
-            Files.setPosixFilePermissions(path, OWNER_ONLY);
-        } catch (UnsupportedOperationException ignored) {
-            // The platform does not expose POSIX permissions.
         }
     }
 }

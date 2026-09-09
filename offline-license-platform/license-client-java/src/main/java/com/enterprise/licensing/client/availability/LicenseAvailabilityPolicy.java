@@ -1,9 +1,12 @@
 package com.enterprise.licensing.client.availability;
 
 import com.enterprise.licensing.model.LicenseOperation;
+
 import java.util.Set;
 
-/** Defines which operations may be resolved from a valid signed cache while the server is unavailable. */
+/**
+ * Defines which operations may be resolved from a valid signed cache while the server is unavailable.
+ */
 public final class LicenseAvailabilityPolicy {
     private final Set<LicenseOperation> cachedOperations;
 

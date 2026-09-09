@@ -1,1 +1,10 @@
-package com.enterprise.licensing.client.security;import java.util.Map;public record SignedInstanceRequest(Map<String,String>headers,byte[]body){public SignedInstanceRequest{headers=Map.copyOf(headers);body=body==null?new byte[0]:body.clone();}}
+package com.enterprise.licensing.client.security;
+
+import java.util.Map;
+
+public record SignedInstanceRequest(Map<String, String> headers, byte[] body) {
+    public SignedInstanceRequest {
+        headers = Map.copyOf(headers);
+        body = body == null ? new byte[0] : body.clone();
+    }
+}

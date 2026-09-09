@@ -2,6 +2,7 @@ package com.enterprise.licensing.engine.entitlement;
 
 import com.enterprise.licensing.model.FeatureId;
 import com.enterprise.licensing.model.ProductId;
+
 import java.util.Locale;
 import java.util.Map;
 
@@ -11,7 +12,8 @@ public final class LegacyFeatureCatalog {
             "ORACLE_ANALYTICS", new FeatureId("ORACLE_ANALYTICS"),
             "COGNOS", new FeatureId("COGNOS"));
 
-    private LegacyFeatureCatalog() { }
+    private LegacyFeatureCatalog() {
+    }
 
     public static FeatureId normalize(ProductId productId, FeatureId featureId) {
         if (!ProductId.VALIDATOR.equals(productId)) {

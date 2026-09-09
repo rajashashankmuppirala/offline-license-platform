@@ -9,43 +9,18 @@ import com.enterprise.licensing.storage.repository.SqliteAuditRepository;
 import com.enterprise.licensing.storage.sqlite.SqliteDatabase;
 import com.enterprise.licensing.storage.sqlite.SqliteImmediateTransactionRunner;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class AtomicAuditTransactionTest {
-    @TempDir Path temp;
-
-    @Test
-    void auditFailureRollsBackTheProtectedMutation() {
-        try (var database = new SqliteDatabase(temp.resolve("atomic-audit.db"))) {
-            var transactions = new SqliteImmediateTransactionRunner(database);
-            var audit = new SqliteAuditRepository(database, transactions, new ObjectMapper());
-            database.withConnection(connection -> {
-                try (var statement = connection.createStatement()) {
-                    statement.execute("CREATE TRIGGER reject_audit BEFORE INSERT ON audit_event "
-                            + "BEGIN SELECT RAISE(ABORT, 'audit failure'); END");
-                    return null;
-                } catch (Exception exception) {
-                    throw new RuntimeException(exception);
-                }
-            });
-
-            assertThatThrownBy(() -> transactions.write(() -> {
-                insertRevocation(database);
-                audit.append(UUID.randomUUID(), Instant.parse("2026-01-01T00:00:00Z"), "C", "L", null,
-                        LicenseOperation.ACTIVATION_IMPORT, "license", true,
-                        LicenseReasonCode.LICENSE_VALID, Map.of());
-                return null;
-            })).hasMessageContaining("Audit persistence failure");
-
-            assertThat(count(database, "local_revocation")).isZero();
-            assertThat(count(database, "audit_event")).isZero();
-        }
-    }
+    @TempDir
+    Path temp;
 
     private static void insertRevocation(SqliteDatabase database) {
         database.withConnection(connection -> {
@@ -74,5 +49,33 @@ class AtomicAuditTransactionTest {
                 throw new RuntimeException(exception);
             }
         });
+    }
+
+    @Test
+    void auditFailureRollsBackTheProtectedMutation() {
+        try (var database = new SqliteDatabase(temp.resolve("atomic-audit.db"))) {
+            var transactions = new SqliteImmediateTransactionRunner(database);
+            var audit = new SqliteAuditRepository(database, transactions, new ObjectMapper());
+            database.withConnection(connection -> {
+                try (var statement = connection.createStatement()) {
+                    statement.execute("CREATE TRIGGER reject_audit BEFORE INSERT ON audit_event "
+                            + "BEGIN SELECT RAISE(ABORT, 'audit failure'); END");
+                    return null;
+                } catch (Exception exception) {
+                    throw new RuntimeException(exception);
+                }
+            });
+
+            assertThatThrownBy(() -> transactions.write(() -> {
+                insertRevocation(database);
+                audit.append(UUID.randomUUID(), Instant.parse("2026-01-01T00:00:00Z"), "C", "L", null,
+                        LicenseOperation.ACTIVATION_IMPORT, "license", true,
+                        LicenseReasonCode.LICENSE_VALID, Map.of());
+                return null;
+            })).hasMessageContaining("Audit persistence failure");
+
+            assertThat(count(database, "local_revocation")).isZero();
+            assertThat(count(database, "audit_event")).isZero();
+        }
     }
 }

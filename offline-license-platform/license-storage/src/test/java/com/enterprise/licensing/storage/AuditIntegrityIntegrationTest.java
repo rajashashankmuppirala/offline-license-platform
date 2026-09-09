@@ -1,3 +1,47 @@
 package com.enterprise.licensing.storage;
-import static org.assertj.core.api.Assertions.assertThat;import com.enterprise.licensing.engine.audit.*;import com.enterprise.licensing.model.*;import com.enterprise.licensing.storage.repository.SqliteAuditRepository;import com.enterprise.licensing.storage.sqlite.*;import com.fasterxml.jackson.databind.ObjectMapper;import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;import java.nio.file.Path;import java.time.Instant;import java.util.*;import org.junit.jupiter.api.Test;import org.junit.jupiter.api.io.TempDir;
-class AuditIntegrityIntegrationTest{@TempDir Path temp;@Test void redactsSecretsPagesAndDetectsHashChainCorruption(){var d=new SqliteDatabase(temp.resolve("audit.db"));var mapper=new ObjectMapper().registerModule(new JavaTimeModule());var repo=new SqliteAuditRepository(d,new SqliteImmediateTransactionRunner(d),mapper);var ids=new java.util.concurrent.atomic.AtomicInteger();var service=new AuditService(repo,new AuditRedactor(),()->Instant.parse("2026-01-01T00:00:00Z"),()->new UUID(0,ids.incrementAndGet()),false);service.record("C","L","I",LicenseOperation.PRODUCT_CHECK,"VALIDATOR",true,LicenseReasonCode.LICENSE_VALID,Map.of("privateKey","never-log","publicKeyFingerprint","safe"));service.record("C","L","I",LicenseOperation.FEATURE_CHECK,"TABLEAU",false,LicenseReasonCode.FEATURE_NOT_ENTITLED,Map.of());assertThat(repo.page(0,1)).singleElement().satisfies(e->{assertThat(e.context().get("privateKey")).isEqualTo("[REDACTED]");assertThat(e.context().get("publicKeyFingerprint")).isEqualTo("safe");});assertThat(repo.verifyChain()).isTrue();d.withConnection(c->{try(var s=c.prepareStatement("UPDATE audit_event SET reason_code='LICENSE_EXPIRED' WHERE operation='PRODUCT_CHECK'")){s.executeUpdate();return null;}catch(Exception e){throw new RuntimeException(e);}});assertThat(repo.verifyChain()).isFalse();}}
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.enterprise.licensing.engine.audit.*;
+import com.enterprise.licensing.model.*;
+import com.enterprise.licensing.storage.repository.SqliteAuditRepository;
+import com.enterprise.licensing.storage.sqlite.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.*;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class AuditIntegrityIntegrationTest {
+    @TempDir
+    Path temp;
+
+    @Test
+    void redactsSecretsPagesAndDetectsHashChainCorruption() {
+        var d = new SqliteDatabase(temp.resolve("audit.db"));
+        var mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        var repo = new SqliteAuditRepository(d, new SqliteImmediateTransactionRunner(d), mapper);
+        var ids = new java.util.concurrent.atomic.AtomicInteger();
+        var service = new AuditService(repo, new AuditRedactor(), () -> Instant.parse("2026-01-01T00:00:00Z"), () -> new UUID(0, ids.incrementAndGet()), false);
+        service.record("C", "L", "I", LicenseOperation.PRODUCT_CHECK, "VALIDATOR", true, LicenseReasonCode.LICENSE_VALID, Map.of("privateKey", "never-log", "publicKeyFingerprint", "safe"));
+        service.record("C", "L", "I", LicenseOperation.FEATURE_CHECK, "TABLEAU", false, LicenseReasonCode.FEATURE_NOT_ENTITLED, Map.of());
+        assertThat(repo.page(0, 1)).singleElement().satisfies(e -> {
+            assertThat(e.context().get("privateKey")).isEqualTo("[REDACTED]");
+            assertThat(e.context().get("publicKeyFingerprint")).isEqualTo("safe");
+        });
+        assertThat(repo.verifyChain()).isTrue();
+        d.withConnection(c -> {
+            try (var s = c.prepareStatement("UPDATE audit_event SET reason_code='LICENSE_EXPIRED' WHERE operation='PRODUCT_CHECK'")) {
+                s.executeUpdate();
+                return null;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+        assertThat(repo.verifyChain()).isFalse();
+    }
+}

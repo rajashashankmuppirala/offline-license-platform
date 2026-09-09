@@ -1,3 +1,25 @@
 package com.enterprise.licensing.client.security;
-import com.enterprise.licensing.client.identity.ProductInstanceIdentityStore;import com.enterprise.licensing.crypto.*;import java.time.*;import java.util.*;
-public final class SignedInstanceRequestFactory{private final ProductInstanceIdentityStore.Material identity;private final Clock clock;private final InstanceRequestCanonicalizer canonicalizer=new InstanceRequestCanonicalizer();public SignedInstanceRequestFactory(ProductInstanceIdentityStore.Material i,Clock c){identity=i;clock=c;}public SignedInstanceRequest sign(String method,String path,byte[]body){String timestamp=clock.instant().toString();String nonce=UUID.randomUUID().toString();byte[]signature=Ed25519Keys.sign(identity.privateKey(),canonicalizer.canonicalize(method,path,timestamp,nonce,body));return new SignedInstanceRequest(Map.of("X-License-Instance-Id",identity.identity().instanceId(),"X-License-Timestamp",timestamp,"X-License-Nonce",nonce,"X-License-Signature",Base64.getUrlEncoder().withoutPadding().encodeToString(signature)),body);}}
+
+import com.enterprise.licensing.client.identity.ProductInstanceIdentityStore;
+import com.enterprise.licensing.crypto.*;
+
+import java.time.*;
+import java.util.*;
+
+public final class SignedInstanceRequestFactory {
+    private final ProductInstanceIdentityStore.Material identity;
+    private final Clock clock;
+    private final InstanceRequestCanonicalizer canonicalizer = new InstanceRequestCanonicalizer();
+
+    public SignedInstanceRequestFactory(ProductInstanceIdentityStore.Material i, Clock c) {
+        identity = i;
+        clock = c;
+    }
+
+    public SignedInstanceRequest sign(String method, String path, byte[] body) {
+        String timestamp = clock.instant().toString();
+        String nonce = UUID.randomUUID().toString();
+        byte[] signature = Ed25519Keys.sign(identity.privateKey(), canonicalizer.canonicalize(method, path, timestamp, nonce, body));
+        return new SignedInstanceRequest(Map.of("X-License-Instance-Id", identity.identity().instanceId(), "X-License-Timestamp", timestamp, "X-License-Nonce", nonce, "X-License-Signature", Base64.getUrlEncoder().withoutPadding().encodeToString(signature)), body);
+    }
+}

@@ -18,25 +18,46 @@ public final class LicenseServerHealthIndicator implements HealthIndicator {
     private final AuthoritativeStateIntegrityService integrity;
     private final StartupDiagnosticState startup;
 
-    public LicenseServerHealthIndicator(LicenseServerIdentityService identity,LicenseRepository licenses,
-                                        RecoveryService recovery,SqliteImmediateTransactionRunner transactions,
-                                        AuthoritativeStateIntegrityService integrity,StartupDiagnosticState startup){
-        this.identity=identity;this.licenses=licenses;this.recovery=recovery;this.transactions=transactions;this.integrity=integrity;this.startup=startup;
+    public LicenseServerHealthIndicator(LicenseServerIdentityService identity, LicenseRepository licenses,
+                                        RecoveryService recovery, SqliteImmediateTransactionRunner transactions,
+                                        AuthoritativeStateIntegrityService integrity, StartupDiagnosticState startup) {
+        this.identity = identity;
+        this.licenses = licenses;
+        this.recovery = recovery;
+        this.transactions = transactions;
+        this.integrity = integrity;
+        this.startup = startup;
     }
 
-    @Override public Health health(){
+    @Override
+    public Health health() {
         try {
-            if(startup.safeMode())return Health.down().withDetail("reasonCode",startup.reasonCode()).withDetail("diagnosticCode",startup.diagnosticCode()).build();
-            var verified=integrity.verifyOrInitialize();
-            if(verified!=LicenseReasonCode.LICENSE_VALID){recovery.observeValidationFailure(verified);return details(Health.down());}
+            if (startup.safeMode())
+                return Health.down().withDetail("reasonCode", startup.reasonCode()).withDetail("diagnosticCode", startup.diagnosticCode()).build();
+            var verified = integrity.verifyOrInitialize();
+            if (verified != LicenseReasonCode.LICENSE_VALID) {
+                recovery.observeValidationFailure(verified);
+                return details(Health.down());
+            }
             integrity.beginVerifiedRequest();
-            try {transactions.write(()->{recovery.assess();return null;});integrity.seal();}
-            finally {integrity.endVerifiedRequest();}
-            return details(recovery.ready()?Health.up():Health.down());
-        } catch(RuntimeException exception){return Health.down().withDetail("reasonCode",LicenseReasonCode.STATE_INTEGRITY_FAILURE).withDetail("diagnosticCode","STARTUP_OR_INTEGRITY_FAILURE").build();}
+            try {
+                transactions.write(() -> {
+                    recovery.assess();
+                    return null;
+                });
+                integrity.seal();
+            } finally {
+                integrity.endVerifiedRequest();
+            }
+            return details(recovery.ready() ? Health.up() : Health.down());
+        } catch (RuntimeException exception) {
+            return Health.down().withDetail("reasonCode", LicenseReasonCode.STATE_INTEGRITY_FAILURE).withDetail("diagnosticCode", "STARTUP_OR_INTEGRITY_FAILURE").build();
+        }
     }
 
-    private Health details(Health.Builder builder){return builder.withDetail("serverId",identity.publicIdentity().licenseServerId())
-            .withDetail("activationState",licenses.active().isPresent()?"ACTIVE":"UNACTIVATED")
-            .withDetail("recoveryState",recovery.state()).withDetail("reasonCode",recovery.reasonCode()).build();}
+    private Health details(Health.Builder builder) {
+        return builder.withDetail("serverId", identity.publicIdentity().licenseServerId())
+                .withDetail("activationState", licenses.active().isPresent() ? "ACTIVE" : "UNACTIVATED")
+                .withDetail("recoveryState", recovery.state()).withDetail("reasonCode", recovery.reasonCode()).build();
+    }
 }

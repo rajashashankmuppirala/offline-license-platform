@@ -15,7 +15,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CommercialLicenseContractTest {
-    @Test void roundTripsVersionedTypedEntitlements() throws Exception {
+    private static CommercialLicense validLicense() {
+        return new CommercialLicense("1.0", "LIC-1", new CustomerIdentity("C1", "Customer", "c@example.com"),
+                new SubscriptionEntitlement("SUBSCRIPTION", "TEAMS", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"), 7),
+                new ActivationPolicy(true, 1, true), List.of(new EnvironmentEntitlement(EnvironmentType.PRODUCTION, 1, false)),
+                new UserEntitlement(10, 2, List.of()), List.of(), new AIEntitlement(false, 0, 0, Set.of(), List.of()), 1, Set.of());
+    }
+
+    private static ObjectMapper mapper() {
+        return new ObjectMapper().registerModule(new JavaTimeModule()).disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
+
+    @Test
+    void roundTripsVersionedTypedEntitlements() throws Exception {
         var license = new CommercialLicense("1.0", "LIC-1", new CustomerIdentity("C1", "Customer", "c@example.com"),
                 new SubscriptionEntitlement("SUBSCRIPTION", "TEAMS", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"), 7),
                 new ActivationPolicy(true, 1, true), List.of(new EnvironmentEntitlement(EnvironmentType.PRODUCTION, 1, false)),
@@ -29,7 +41,8 @@ class CommercialLicenseContractTest {
         assertThat(decoded.licenseSequence()).isEqualTo(1);
     }
 
-    @Test void mapsLegacyBusinessFieldsWithoutGrantingAiOrImplicitEnvironments() {
+    @Test
+    void mapsLegacyBusinessFieldsWithoutGrantingAiOrImplicitEnvironments() {
         String legacy = """
                 {"companyName":"A Inc.","contactEmail":"a@d.com","licenseType":"Subscription","startDate":"2025-08-11","endDate":"2026-08-14","subscriptionType":"Teams","totalNamedUsers":500,"concurrentUser":20,"totalReportingUsers":100,"totalDQIssueManagerUsers":100,"productCollection":[{"name":"Validator","noOfUsers":500,"subProducts":["tableau","oracle-analytics","cognos"]}]}
                 """;
@@ -45,39 +58,37 @@ class CommercialLicenseContractTest {
         assertThat(mapped.environments()).isEmpty();
     }
 
-    @Test void rejectsUnsupportedVersionAndMalformedLegacyLicense() {
+    @Test
+    void rejectsUnsupportedVersionAndMalformedLegacyLicense() {
         var codec = new CommercialLicenseJsonCodec(mapper());
         var defaults = new CommercialLicenseJsonCodec.LegacyDefaults("LIC", "C", new ActivationPolicy(true, 1, true));
         assertThatThrownBy(() -> codec.read("{\"schemaVersion\":\"9.0\"}".getBytes(), defaults)).hasMessageContaining("Unsupported");
         assertThatThrownBy(() -> codec.read("{\"companyName\":\"A\"}".getBytes(), defaults)).hasMessageContaining("Missing legacy field");
     }
 
-    @Test void strictSchemaRejectsUnknownMissingAndOutOfRangeFields() throws Exception {
+    @Test
+    void strictSchemaRejectsUnknownMissingAndOutOfRangeFields() throws Exception {
         var mapper = mapper();
         var codec = new CommercialLicenseJsonCodec(mapper);
         var valid = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(mapper.writeValueAsBytes(validLicense()));
 
-        var unknown = valid.deepCopy(); unknown.put("unlicensedExtension", true);
+        var unknown = valid.deepCopy();
+        unknown.put("unlicensedExtension", true);
         assertThatThrownBy(() -> codec.readVersioned(mapper.writeValueAsBytes(unknown))).hasMessageContaining("schema violation");
-        var missing = valid.deepCopy(); missing.remove("customer");
+        var missing = valid.deepCopy();
+        missing.remove("customer");
         assertThatThrownBy(() -> codec.readVersioned(mapper.writeValueAsBytes(missing))).hasMessageContaining("schema violation");
-        var range = valid.deepCopy(); ((com.fasterxml.jackson.databind.node.ObjectNode) range.path("users")).put("maxConcurrentUsers", -1);
+        var range = valid.deepCopy();
+        ((com.fasterxml.jackson.databind.node.ObjectNode) range.path("users")).put("maxConcurrentUsers", -1);
         assertThatThrownBy(() -> codec.readVersioned(mapper.writeValueAsBytes(range))).hasMessageContaining("schema violation");
-        var version = valid.deepCopy(); version.put("schemaVersion", "2.0");
+        var version = valid.deepCopy();
+        version.put("schemaVersion", "2.0");
         assertThatThrownBy(() -> codec.readVersioned(mapper.writeValueAsBytes(version))).isInstanceOf(CommercialLicenseSchema.UnsupportedVersionException.class);
     }
 
-    @Test void publishedAndBundledSchemasAreByteForByteIdentical() throws Exception {
+    @Test
+    void publishedAndBundledSchemasAreByteForByteIdentical() throws Exception {
         assertThat(Files.readString(Path.of("../../specs/001-central-offline-license-server/contracts/commercial-license.schema.json")))
                 .isEqualTo(Files.readString(Path.of("src/main/resources/schema/commercial-license-1.0.schema.json")));
     }
-
-    private static CommercialLicense validLicense() {
-        return new CommercialLicense("1.0", "LIC-1", new CustomerIdentity("C1", "Customer", "c@example.com"),
-                new SubscriptionEntitlement("SUBSCRIPTION", "TEAMS", Instant.parse("2026-01-01T00:00:00Z"), Instant.parse("2027-01-01T00:00:00Z"), 7),
-                new ActivationPolicy(true, 1, true), List.of(new EnvironmentEntitlement(EnvironmentType.PRODUCTION, 1, false)),
-                new UserEntitlement(10, 2, List.of()), List.of(), new AIEntitlement(false, 0, 0, Set.of(), List.of()), 1, Set.of());
-    }
-
-    private static ObjectMapper mapper() { return new ObjectMapper().registerModule(new JavaTimeModule()).disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); }
 }

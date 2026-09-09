@@ -1,3 +1,3 @@
 package com.enterprise.licensing.model;
 
-public enum MeterPeriod { MONTHLY }
+public enum MeterPeriod {MONTHLY}

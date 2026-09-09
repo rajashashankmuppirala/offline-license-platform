@@ -5,10 +5,13 @@ import com.enterprise.licensing.crypto.runtime.CommercialLicenseVerifier;
 import com.enterprise.licensing.engine.activation.ActiveLicenseState;
 import com.enterprise.licensing.model.LicenseReasonCode;
 import com.enterprise.licensing.model.LicenseServerIdentity;
+
 import java.security.PublicKey;
 import java.util.function.Supplier;
 
-/** Re-establishes trust in persisted signed artifacts before they may authorize a decision. */
+/**
+ * Re-establishes trust in persisted signed artifacts before they may authorize a decision.
+ */
 public final class ActiveLicenseVerifier implements ActiveStateVerifier {
     private final CommercialLicenseVerifier licenses;
     private final ActivationVerifier activations;

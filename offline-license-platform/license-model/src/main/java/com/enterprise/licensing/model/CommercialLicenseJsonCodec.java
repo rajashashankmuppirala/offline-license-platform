@@ -20,18 +20,25 @@ public final class CommercialLicenseJsonCodec {
             if (version == null) return legacyMapper.map(root, legacyDefaults);
             CommercialLicenseSchema.validate(json);
             return mapper.treeToValue(root, CommercialLicense.class);
-        } catch (IllegalArgumentException e) { throw e; }
-        catch (Exception e) { throw new IllegalArgumentException("Malformed commercial license", e); }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Malformed commercial license", e);
+        }
     }
 
     public CommercialLicense readVersioned(byte[] json) {
         try {
             JsonNode root = mapper.readTree(json);
-            if (root == null || root.get("schemaVersion") == null) throw new IllegalArgumentException("schemaVersion is required");
+            if (root == null || root.get("schemaVersion") == null)
+                throw new IllegalArgumentException("schemaVersion is required");
             CommercialLicenseSchema.validate(json);
             return mapper.treeToValue(root, CommercialLicense.class);
-        } catch (IllegalArgumentException e) { throw e; }
-        catch (Exception e) { throw new IllegalArgumentException("Malformed commercial license", e); }
+        } catch (IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Malformed commercial license", e);
+        }
     }
 
     public record LegacyDefaults(String licenseId, String customerId, ActivationPolicy activationPolicy) {

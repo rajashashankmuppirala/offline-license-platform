@@ -4,6 +4,7 @@ public record EnvironmentEntitlement(EnvironmentType type, int maxInstances, boo
     public EnvironmentEntitlement(EnvironmentType type, int maxInstances, boolean activePassive) {
         this(type, maxInstances, activePassive, EntitlementPool.CUSTOMER_WIDE);
     }
+
     public EnvironmentEntitlement {
         if (type == null) throw new IllegalArgumentException("type is required");
         Validation.nonNegative(maxInstances, "maxInstances");

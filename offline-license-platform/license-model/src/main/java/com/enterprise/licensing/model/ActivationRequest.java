@@ -9,10 +9,13 @@ public record ActivationRequest(String schemaVersion, UUID licenseServerId, Enco
                                 Instant createdAt, Map<String, String> environmentEvidence, String proofSignature) {
     public ActivationRequest {
         schemaVersion = Validation.required(schemaVersion, "schemaVersion");
-        if (licenseServerId == null || installationPublicKey == null || createdAt == null) throw new IllegalArgumentException("activation request fields are required");
+        if (licenseServerId == null || installationPublicKey == null || createdAt == null)
+            throw new IllegalArgumentException("activation request fields are required");
         publicKeyFingerprint = Validation.required(publicKeyFingerprint, "publicKeyFingerprint");
-        licenseId = Validation.required(licenseId, "licenseId"); customerId = Validation.required(customerId, "customerId");
-        nonce = Validation.required(nonce, "nonce"); proofSignature = Validation.required(proofSignature, "proofSignature");
+        licenseId = Validation.required(licenseId, "licenseId");
+        customerId = Validation.required(customerId, "customerId");
+        nonce = Validation.required(nonce, "nonce");
+        proofSignature = Validation.required(proofSignature, "proofSignature");
         environmentEvidence = environmentEvidence == null ? Map.of() : Map.copyOf(environmentEvidence);
     }
 }

@@ -3,6 +3,7 @@ package com.enterprise.licensing.crypto.runtime;
 import com.enterprise.licensing.crypto.CanonicalJson;
 import com.enterprise.licensing.crypto.Ed25519Keys;
 import com.enterprise.licensing.model.ActivationRequest;
+
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
 import java.util.Base64;

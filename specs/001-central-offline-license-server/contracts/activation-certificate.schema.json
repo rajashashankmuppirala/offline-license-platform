@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://offline-license.example/schemas/activation-certificate-1.0.json",
+  "title": "Activation Certificate Payload 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "activationId",
+    "licenseId",
+    "customerId",
+    "licenseServerId",
+    "publicKeyFingerprint",
+    "permittedActivationPolicy",
+    "issuedAt",
+    "minimumLicenseSequence"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "activationId": { "type": "string", "format": "uuid" },
+    "licenseId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "customerId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "licenseServerId": { "type": "string", "format": "uuid" },
+    "publicKeyFingerprint": { "type": "string", "minLength": 43, "maxLength": 43 },
+    "permittedActivationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxLicenseServers", "renewalMayReuseActivation"],
+      "properties": {
+        "maxLicenseServers": { "type": "integer", "minimum": 1 },
+        "renewalMayReuseActivation": { "type": "boolean" }
+      }
+    },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "notBefore": { "type": "string", "format": "date-time" },
+    "notAfter": { "type": "string", "format": "date-time" },
+    "minimumLicenseSequence": { "type": "integer", "minimum": 1 },
+    "maximumLicenseSequence": { "type": "integer", "minimum": 1 }
+  }
+}

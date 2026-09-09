@@ -22,26 +22,31 @@ import com.enterprise.licensing.storage.sqlite.SqliteImmediateTransactionRunner;
 import com.enterprise.licensing.testkit.LicenseFixtures;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class ActivationIntegrationTest {
-    @TempDir Path temp;
     private final Instant now = Instant.parse("2026-01-01T00:00:00Z");
     private final ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
     private final CanonicalJson canonical = new CanonicalJson(mapper);
+    @TempDir
+    Path temp;
 
     @Test
     void activationIsBoundToOneIndependentlyCreatedServer() {
-        var vendor = Ed25519Keys.generate(); var signer = new VendorEnvelopeSigner(canonical);
+        var vendor = Ed25519Keys.generate();
+        var signer = new VendorEnvelopeSigner(canonical);
         var license = LicenseFixtures.aInc();
         var licenseEnvelope = new CommercialLicenseSigner(signer).sign(license, vendor);
-        var identityA = identity("a"); var identityB = identity("b");
+        var identityA = identity("a");
+        var identityB = identity("b");
         var certificate = certificate(identityA, license.licenseId(), license.customer().customerId());
         var activationEnvelope = new ActivationSigner(signer).sign(certificate, vendor);
 
@@ -55,8 +60,10 @@ class ActivationIntegrationTest {
 
     @Test
     void modifiedActivationAndWrongCustomerAreRejected() {
-        var vendor = Ed25519Keys.generate(); var signer = new VendorEnvelopeSigner(canonical);
-        var license = LicenseFixtures.aInc(); var identity = identity("server");
+        var vendor = Ed25519Keys.generate();
+        var signer = new VendorEnvelopeSigner(canonical);
+        var license = LicenseFixtures.aInc();
+        var identity = identity("server");
         var licenseEnvelope = new CommercialLicenseSigner(signer).sign(license, vendor);
         var valid = new ActivationSigner(signer).sign(certificate(identity, license.licenseId(), license.customer().customerId()), vendor);
         String alteredSignature = (valid.signature().charAt(0) == 'A' ? "B" : "A") + valid.signature().substring(1);

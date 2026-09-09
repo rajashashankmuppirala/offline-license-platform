@@ -8,15 +8,29 @@ import com.enterprise.licensing.storage.identity.SoftwareIdentityProvider;
 import com.enterprise.licensing.storage.integrity.AuthoritativeStateIntegrityService;
 import com.enterprise.licensing.storage.sqlite.SqliteDatabase;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class AuthoritativeStateIntegrityTest {
-    @TempDir Path temp;
+    @TempDir
+    Path temp;
+
+    private static void execute(SqliteDatabase database, String sql) {
+        database.withConnection(connection -> {
+            try (var statement = connection.createStatement()) {
+                statement.execute(sql);
+                return null;
+            } catch (Exception exception) {
+                throw new RuntimeException(exception);
+            }
+        });
+    }
 
     @Test
     void detectsAChangeInEveryProtectedSecurityStateClass() {
@@ -56,16 +70,6 @@ class AuthoritativeStateIntegrityTest {
         }
     }
 
-    private static void execute(SqliteDatabase database, String sql) {
-        database.withConnection(connection -> {
-            try (var statement = connection.createStatement()) {
-                statement.execute(sql);
-                return null;
-            } catch (Exception exception) {
-                throw new RuntimeException(exception);
-            }
-        });
+    private record Mutation(String table, String sql) {
     }
-
-    private record Mutation(String table, String sql) {}
 }

@@ -3,7 +3,8 @@ package com.enterprise.licensing.model;
 import java.util.Collection;
 
 final class Validation {
-    private Validation() {}
+    private Validation() {
+    }
 
     static String required(String value, String name) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " is required");

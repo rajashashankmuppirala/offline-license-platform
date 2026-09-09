@@ -6,6 +6,7 @@ import com.enterprise.licensing.engine.identity.LicenseServerIdentityService;
 import com.enterprise.licensing.engine.ports.IdGenerator;
 import com.enterprise.licensing.engine.ports.TimeSource;
 import com.enterprise.licensing.model.ActivationRequest;
+
 import java.util.Base64;
 import java.util.Map;
 

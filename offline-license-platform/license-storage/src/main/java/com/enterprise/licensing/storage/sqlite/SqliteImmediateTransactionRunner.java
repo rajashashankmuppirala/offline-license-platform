@@ -13,33 +13,61 @@ public final class SqliteImmediateTransactionRunner implements TransactionRunner
     private final ReentrantLock writer = new ReentrantLock(true);
     private final int attempts;
 
-    public SqliteImmediateTransactionRunner(SqliteDatabase database) { this(database, 5); }
-    public SqliteImmediateTransactionRunner(SqliteDatabase database, int attempts) { this.database = database; this.attempts = attempts; }
+    public SqliteImmediateTransactionRunner(SqliteDatabase database) {
+        this(database, 5);
+    }
 
-    @Override public <T> T read(Supplier<T> work) { return database.withConnection(ignored -> work.get()); }
+    public SqliteImmediateTransactionRunner(SqliteDatabase database, int attempts) {
+        this.database = database;
+        this.attempts = attempts;
+    }
 
-    @Override public <T> T write(Supplier<T> work) {
+    private static boolean isBusy(Throwable throwable) {
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            if (current.getMessage() != null && current.getMessage().toLowerCase(java.util.Locale.ROOT).contains("busy"))
+                return true;
+        }
+        return false;
+    }
+
+    @Override
+    public <T> T read(Supplier<T> work) {
+        return database.withConnection(ignored -> work.get());
+    }
+
+    @Override
+    public <T> T write(Supplier<T> work) {
         if (database.transactionActive()) return work.get();
         writer.lock();
         try {
             RuntimeException last = null;
             for (int attempt = 1; attempt <= attempts; attempt++) {
-                try { return execute(work); }
-                catch (SqliteStorageException e) {
+                try {
+                    return execute(work);
+                } catch (SqliteStorageException e) {
                     last = e;
                     if (!isBusy(e) || attempt == attempts) throw e;
-                    try { Thread.sleep(10L * attempt); }
-                    catch (InterruptedException interrupted) { Thread.currentThread().interrupt(); throw e; }
+                    try {
+                        Thread.sleep(10L * attempt);
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        throw e;
+                    }
                 }
             }
             throw last;
-        } finally { writer.unlock(); }
+        } finally {
+            writer.unlock();
+        }
     }
 
     public <T> T exclusive(Supplier<T> work) {
         writer.lock();
-        try { return work.get(); }
-        finally { writer.unlock(); }
+        try {
+            return work.get();
+        } finally {
+            writer.unlock();
+        }
     }
 
     private <T> T execute(Supplier<T> work) {
@@ -52,20 +80,22 @@ public final class SqliteImmediateTransactionRunner implements TransactionRunner
             database.bind(connection);
             try {
                 T result = work.get();
-                try (Statement statement = connection.createStatement()) { statement.execute("COMMIT"); }
+                try (Statement statement = connection.createStatement()) {
+                    statement.execute("COMMIT");
+                }
                 return result;
             } catch (RuntimeException e) {
-                try (Statement statement = connection.createStatement()) { statement.execute("ROLLBACK"); }
-                catch (SQLException rollback) { e.addSuppressed(rollback); }
+                try (Statement statement = connection.createStatement()) {
+                    statement.execute("ROLLBACK");
+                } catch (SQLException rollback) {
+                    e.addSuppressed(rollback);
+                }
                 throw e;
-            } finally { database.unbind(); }
-        } catch (SQLException e) { throw new SqliteStorageException("SQLite transaction failed", e); }
-    }
-
-    private static boolean isBusy(Throwable throwable) {
-        for (Throwable current = throwable; current != null; current = current.getCause()) {
-            if (current.getMessage() != null && current.getMessage().toLowerCase(java.util.Locale.ROOT).contains("busy")) return true;
+            } finally {
+                database.unbind();
+            }
+        } catch (SQLException e) {
+            throw new SqliteStorageException("SQLite transaction failed", e);
         }
-        return false;
     }
 }

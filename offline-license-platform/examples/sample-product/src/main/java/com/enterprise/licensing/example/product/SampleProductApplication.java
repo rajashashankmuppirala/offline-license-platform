@@ -11,6 +11,7 @@ import com.enterprise.licensing.client.transport.JdkLicenseTransport;
 import com.enterprise.licensing.crypto.Ed25519Keys;
 import com.enterprise.licensing.model.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.PrintStream;
 import java.net.URI;
 import java.nio.file.Path;
@@ -18,66 +19,15 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
 
-/** A runnable example whose business code sees typed decisions and leases, never license JSON. */
+/**
+ * A runnable example whose business code sees typed decisions and leases, never license JSON.
+ */
 public final class SampleProductApplication {
     private static final Duration HEARTBEAT_INTERVAL = Duration.ofMinutes(1);
     private final LicenseClient licenses;
 
     public SampleProductApplication(LicenseClient licenses) {
         this.licenses = licenses;
-    }
-
-    public LicenseDecision tableau() {
-        return licenses.feature(ProductId.VALIDATOR, new FeatureId("TABLEAU"));
-    }
-
-    public UserLeaseManager login(String user, String session) {
-        return new UserLeaseManager(licenses, licenses.acquireUser(user, AccountType.HUMAN, session),
-                HEARTBEAT_INTERVAL, Clock.systemUTC());
-    }
-
-    public AgentLeaseManager autonomousRun(String agent, String execution) {
-        return new AgentLeaseManager(licenses,
-                licenses.acquireAgentExecution(agent, execution, AiCapability.AUTONOMOUS_AGENT),
-                HEARTBEAT_INTERVAL, Clock.systemUTC());
-    }
-
-    public UsageCounter recordInteractiveAi(String requestId) {
-        return licenses.consumeAction(requestId, "AI_EXECUTION_UNIT", "INTERACTIVE_AI_REQUEST",
-                Map.of("source", "sample-product"));
-    }
-
-    /** Exercises every documented integration path and throws on the first denied or invalid result. */
-    public void exercise(String user, String session, String agent, String execution,
-                         String requestId, PrintStream out) {
-        Object activationState = licenses.status().get("activationState");
-        require("ACTIVE".equals(String.valueOf(activationState)), "License Server is not ACTIVE");
-        out.println("STATUS ACTIVE");
-
-        RegisteredProductInstance instance = licenses.register(
-                DeploymentType.OTHER, EnvironmentType.PRODUCTION, ProductId.VALIDATOR,
-                "1.0.0", Map.of("application", "sample-product"));
-        require(instance.state() == InstanceState.ACTIVE, "Sample product instance is not ACTIVE");
-        out.println("INSTANCE ACTIVE " + instance.instanceId());
-
-        requireAllowed(licenses.product(ProductId.VALIDATOR), "VALIDATOR product");
-        out.println("PRODUCT VALIDATOR LICENSE_VALID");
-        requireAllowed(tableau(), "TABLEAU feature");
-        out.println("FEATURE TABLEAU LICENSE_VALID");
-        requireAllowed(licenses.productUserCapacity(ProductId.VALIDATOR, user), "VALIDATOR user capacity");
-
-        try (UserLeaseManager userLease = login(user, session)) {
-            require(userLease.valid(), "User lease was not active after acquisition");
-            out.println("USER_LEASE ACTIVE " + userLease.current().leaseId());
-            try (AgentLeaseManager agentLease = autonomousRun(agent, execution)) {
-                require(agentLease.valid(), "Agent execution lease was not active after acquisition");
-                out.println("AI_EXECUTION_LEASE ACTIVE " + agentLease.current().leaseId());
-                UsageCounter counter = recordInteractiveAi(requestId);
-                require(counter.usedAmount() <= counter.licensedLimit(), "AI usage exceeded its licensed limit");
-                out.println("AI_METER ACCEPTED " + counter.usedAmount() + "/" + counter.licensedLimit());
-            }
-        }
-        out.println("SAMPLE_PRODUCT_FLOW COMPLETE");
     }
 
     public static void main(String[] args) throws Exception {
@@ -129,5 +79,60 @@ public final class SampleProductApplication {
 
     private static void require(boolean condition, String message) {
         if (!condition) throw new IllegalStateException(message);
+    }
+
+    public LicenseDecision tableau() {
+        return licenses.feature(ProductId.VALIDATOR, new FeatureId("TABLEAU"));
+    }
+
+    public UserLeaseManager login(String user, String session) {
+        return new UserLeaseManager(licenses, licenses.acquireUser(user, AccountType.HUMAN, session),
+                HEARTBEAT_INTERVAL, Clock.systemUTC());
+    }
+
+    public AgentLeaseManager autonomousRun(String agent, String execution) {
+        return new AgentLeaseManager(licenses,
+                licenses.acquireAgentExecution(agent, execution, AiCapability.AUTONOMOUS_AGENT),
+                HEARTBEAT_INTERVAL, Clock.systemUTC());
+    }
+
+    public UsageCounter recordInteractiveAi(String requestId) {
+        return licenses.consumeAction(requestId, "AI_EXECUTION_UNIT", "INTERACTIVE_AI_REQUEST",
+                Map.of("source", "sample-product"));
+    }
+
+    /**
+     * Exercises every documented integration path and throws on the first denied or invalid result.
+     */
+    public void exercise(String user, String session, String agent, String execution,
+                         String requestId, PrintStream out) {
+        Object activationState = licenses.status().get("activationState");
+        require("ACTIVE".equals(String.valueOf(activationState)), "License Server is not ACTIVE");
+        out.println("STATUS ACTIVE");
+
+        RegisteredProductInstance instance = licenses.register(
+                DeploymentType.OTHER, EnvironmentType.PRODUCTION, ProductId.VALIDATOR,
+                "1.0.0", Map.of("application", "sample-product"));
+        require(instance.state() == InstanceState.ACTIVE, "Sample product instance is not ACTIVE");
+        out.println("INSTANCE ACTIVE " + instance.instanceId());
+
+        requireAllowed(licenses.product(ProductId.VALIDATOR), "VALIDATOR product");
+        out.println("PRODUCT VALIDATOR LICENSE_VALID");
+        requireAllowed(tableau(), "TABLEAU feature");
+        out.println("FEATURE TABLEAU LICENSE_VALID");
+        requireAllowed(licenses.productUserCapacity(ProductId.VALIDATOR, user), "VALIDATOR user capacity");
+
+        try (UserLeaseManager userLease = login(user, session)) {
+            require(userLease.valid(), "User lease was not active after acquisition");
+            out.println("USER_LEASE ACTIVE " + userLease.current().leaseId());
+            try (AgentLeaseManager agentLease = autonomousRun(agent, execution)) {
+                require(agentLease.valid(), "Agent execution lease was not active after acquisition");
+                out.println("AI_EXECUTION_LEASE ACTIVE " + agentLease.current().leaseId());
+                UsageCounter counter = recordInteractiveAi(requestId);
+                require(counter.usedAmount() <= counter.licensedLimit(), "AI usage exceeded its licensed limit");
+                out.println("AI_METER ACCEPTED " + counter.usedAmount() + "/" + counter.licensedLimit());
+            }
+        }
+        out.println("SAMPLE_PRODUCT_FLOW COMPLETE");
     }
 }

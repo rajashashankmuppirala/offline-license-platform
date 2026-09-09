@@ -6,6 +6,7 @@ import com.enterprise.licensing.engine.validation.AuthoritativeStateVerifier;
 import com.enterprise.licensing.model.LicenseReasonCode;
 import com.enterprise.licensing.storage.sqlite.SqliteDatabase;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
@@ -21,7 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-/** Detects ordinary out-of-band edits to all authoritative licensing tables. */
+/**
+ * Detects ordinary out-of-band edits to all authoritative licensing tables.
+ */
 public final class AuthoritativeStateIntegrityService implements AuthoritativeStateVerifier {
     public static final List<String> PROTECTED_TABLES = List.of(
             "license_server_identity", "commercial_license", "activation_certificate",
@@ -47,7 +50,8 @@ public final class AuthoritativeStateIntegrityService implements AuthoritativeSt
         this.canonical = new CanonicalJson(mapper);
     }
 
-    @Override public synchronized LicenseReasonCode verifyOrInitialize() {
+    @Override
+    public synchronized LicenseReasonCode verifyOrInitialize() {
         if (verifiedRequest.get()) return LicenseReasonCode.LICENSE_VALID;
         if (!Files.exists(checkpointFile)) {
             if (hasActivatedState()) return LicenseReasonCode.STATE_INTEGRITY_FAILURE;
@@ -163,5 +167,6 @@ public final class AuthoritativeStateIntegrityService implements AuthoritativeSt
                 "digest", digest));
     }
 
-    private record Checkpoint(String licenseServerId, String digest, String signature) {}
+    private record Checkpoint(String licenseServerId, String digest, String signature) {
+    }
 }

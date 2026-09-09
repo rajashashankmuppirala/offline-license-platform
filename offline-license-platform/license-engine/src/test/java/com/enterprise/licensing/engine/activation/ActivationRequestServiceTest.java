@@ -11,9 +11,11 @@ import com.enterprise.licensing.model.EncodedPublicKey;
 import com.enterprise.licensing.model.LicenseServerIdentity;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 
 class ActivationRequestServiceTest {

@@ -1,14 +1,125 @@
 package com.enterprise.licensing.server.api.runtime;
 
-import com.enterprise.licensing.engine.ai.*;import com.enterprise.licensing.engine.cache.*;import com.enterprise.licensing.engine.metering.*;import com.enterprise.licensing.engine.user.*;import com.enterprise.licensing.model.*;import com.enterprise.licensing.server.api.ApiResponse;import com.enterprise.licensing.server.security.DomainDecisionAudit;import java.util.*;import org.springframework.web.bind.annotation.*;
-@RestController @RequestMapping("/api/v1/license/runtime")public final class RuntimeController{private final UserLicenseService users;private final AgentLeaseService agents;private final MeteringService metering;private final CachedEntitlementService cache;private final DomainDecisionAudit audit;public RuntimeController(UserLicenseService u,AgentLeaseService a,MeteringService m,CachedEntitlementService c,DomainDecisionAudit audit){users=u;agents=a;metering=m;cache=c;this.audit=audit;}
- @PostMapping("/leases/users")public ApiResponse<UserLeaseResult>user(@RequestHeader("X-License-Instance-Id")String instance,@RequestBody UserLeaseInput i){var r=users.acquireLease(i.userId(),i.accountType(),instance,i.sessionId());audit.record(LicenseOperation.USER_LEASE_ACQUIRE,instance,"CONCURRENT_USER",r.accepted(),r.reasonCode(),Map.of("userId",i.userId()));return response(r);}
- @PostMapping("/leases/users/{id}/heartbeat")public ApiResponse<UserLeaseResult>userHeartbeat(@RequestHeader("X-License-Instance-Id")String instance,@PathVariable("id") String id){var r=users.heartbeat(instance,id);audit.record(LicenseOperation.USER_LEASE_HEARTBEAT,instance,"CONCURRENT_USER",r.accepted(),r.reasonCode(),Map.of("leaseId",id));return response(r);}
- @DeleteMapping("/leases/users/{id}")public ApiResponse<UserLeaseResult>userRelease(@RequestHeader("X-License-Instance-Id")String instance,@PathVariable("id") String id){var r=users.releaseLease(instance,id);audit.record(LicenseOperation.USER_LEASE_RELEASE,instance,"CONCURRENT_USER",r.accepted(),r.reasonCode(),Map.of("leaseId",id));return response(r);}
- @PostMapping("/leases/agents")public ApiResponse<AgentLeaseResult>agent(@RequestHeader("X-License-Instance-Id")String instance,@RequestBody AgentLeaseInput i){var r=agents.acquire(i.agentId(),i.executionId(),instance,i.capability());audit.record(LicenseOperation.AGENT_LEASE_ACQUIRE,instance,i.capability().name(),r.accepted(),r.reasonCode(),Map.of("agentId",i.agentId(),"executionId",i.executionId()));return response(r);}
- @PostMapping("/leases/agents/{id}/heartbeat")public ApiResponse<AgentLeaseResult>agentHeartbeat(@RequestHeader("X-License-Instance-Id")String instance,@PathVariable("id") String id){var r=agents.heartbeat(instance,id);audit.record(LicenseOperation.AGENT_LEASE_HEARTBEAT,instance,"AGENT_EXECUTION",r.accepted(),r.reasonCode(),Map.of("leaseId",id));return response(r);}
- @DeleteMapping("/leases/agents/{id}")public ApiResponse<AgentLeaseResult>agentRelease(@RequestHeader("X-License-Instance-Id")String instance,@PathVariable("id") String id){var r=agents.release(instance,id);audit.record(LicenseOperation.AGENT_LEASE_RELEASE,instance,"AGENT_EXECUTION",r.accepted(),r.reasonCode(),Map.of("leaseId",id));return response(r);}
- @PostMapping("/usage")public ApiResponse<UsageResult>usage(@RequestHeader("X-License-Instance-Id")String instance,@RequestBody UsageInput i){var r=metering.consumeAction(i.requestId(),instance,i.meterId(),i.actionType(),i.dimensions());var context=new HashMap<String,Object>();context.put("requestId",i.requestId());context.put("actionType",i.actionType());if(r.counter()!=null){context.put("poolId",r.counter().poolId());context.put("usedAmount",r.counter().usedAmount());context.put("licensedLimit",r.counter().licensedLimit());context.put("periodStart",r.counter().periodStart());context.put("periodEnd",r.counter().periodEnd());}audit.record(LicenseOperation.USAGE_CONSUME,instance,i.meterId(),r.accepted(),r.reasonCode(),context);return response(r);}
- @PostMapping("/cached-entitlements")public ApiResponse<CachedEntitlementResult>cache(@RequestHeader("X-License-Instance-Id")String instance){var r=cache.issue(instance);audit.record(LicenseOperation.CACHED_ENTITLEMENT_ISSUE,instance,"OFFLINE_CACHE",r.accepted(),r.reasonCode(),r.certificate()==null?Map.of():Map.of("certificateId",r.certificate().certificateId(),"expiresAt",r.certificate().expiresAt()));return response(r);}
- public record UserLeaseInput(String userId,AccountType accountType,String sessionId){}public record AgentLeaseInput(String agentId,String executionId,AiCapability capability){}public record UsageInput(String requestId,String meterId,String actionType,Map<String,String>dimensions){}
- private static <T>ApiResponse<T>response(Object value){boolean ok;LicenseReasonCode reason;if(value instanceof UserLeaseResult r){ok=r.accepted();reason=r.reasonCode();}else if(value instanceof AgentLeaseResult r){ok=r.accepted();reason=r.reasonCode();}else if(value instanceof UsageResult r){ok=r.accepted();reason=r.reasonCode();}else if(value instanceof CachedEntitlementResult r){ok=r.accepted();reason=r.reasonCode();}else throw new IllegalArgumentException();return new ApiResponse<>(ok,reason,java.time.Instant.now(),(T)value);}}
+import com.enterprise.licensing.engine.ai.*;
+import com.enterprise.licensing.engine.cache.*;
+import com.enterprise.licensing.engine.metering.*;
+import com.enterprise.licensing.engine.user.*;
+import com.enterprise.licensing.model.*;
+import com.enterprise.licensing.server.api.ApiResponse;
+import com.enterprise.licensing.server.security.DomainDecisionAudit;
+
+import java.util.*;
+
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/license/runtime")
+public final class RuntimeController {
+    private final UserLicenseService users;
+    private final AgentLeaseService agents;
+    private final MeteringService metering;
+    private final CachedEntitlementService cache;
+    private final DomainDecisionAudit audit;
+
+    public RuntimeController(UserLicenseService u, AgentLeaseService a, MeteringService m, CachedEntitlementService c, DomainDecisionAudit audit) {
+        users = u;
+        agents = a;
+        metering = m;
+        cache = c;
+        this.audit = audit;
+    }
+
+    private static <T> ApiResponse<T> response(Object value) {
+        boolean ok;
+        LicenseReasonCode reason;
+        if (value instanceof UserLeaseResult r) {
+            ok = r.accepted();
+            reason = r.reasonCode();
+        } else if (value instanceof AgentLeaseResult r) {
+            ok = r.accepted();
+            reason = r.reasonCode();
+        } else if (value instanceof UsageResult r) {
+            ok = r.accepted();
+            reason = r.reasonCode();
+        } else if (value instanceof CachedEntitlementResult r) {
+            ok = r.accepted();
+            reason = r.reasonCode();
+        } else throw new IllegalArgumentException();
+        return new ApiResponse<>(ok, reason, java.time.Instant.now(), (T) value);
+    }
+
+    @PostMapping("/leases/users")
+    public ApiResponse<UserLeaseResult> user(@RequestHeader("X-License-Instance-Id") String instance, @RequestBody UserLeaseInput i) {
+        var r = users.acquireLease(i.userId(), i.accountType(), instance, i.sessionId());
+        audit.record(LicenseOperation.USER_LEASE_ACQUIRE, instance, "CONCURRENT_USER", r.accepted(), r.reasonCode(), Map.of("userId", i.userId()));
+        return response(r);
+    }
+
+    @PostMapping("/leases/users/{id}/heartbeat")
+    public ApiResponse<UserLeaseResult> userHeartbeat(@RequestHeader("X-License-Instance-Id") String instance, @PathVariable("id") String id) {
+        var r = users.heartbeat(instance, id);
+        audit.record(LicenseOperation.USER_LEASE_HEARTBEAT, instance, "CONCURRENT_USER", r.accepted(), r.reasonCode(), Map.of("leaseId", id));
+        return response(r);
+    }
+
+    @DeleteMapping("/leases/users/{id}")
+    public ApiResponse<UserLeaseResult> userRelease(@RequestHeader("X-License-Instance-Id") String instance, @PathVariable("id") String id) {
+        var r = users.releaseLease(instance, id);
+        audit.record(LicenseOperation.USER_LEASE_RELEASE, instance, "CONCURRENT_USER", r.accepted(), r.reasonCode(), Map.of("leaseId", id));
+        return response(r);
+    }
+
+    @PostMapping("/leases/agents")
+    public ApiResponse<AgentLeaseResult> agent(@RequestHeader("X-License-Instance-Id") String instance, @RequestBody AgentLeaseInput i) {
+        var r = agents.acquire(i.agentId(), i.executionId(), instance, i.capability());
+        audit.record(LicenseOperation.AGENT_LEASE_ACQUIRE, instance, i.capability().name(), r.accepted(), r.reasonCode(), Map.of("agentId", i.agentId(), "executionId", i.executionId()));
+        return response(r);
+    }
+
+    @PostMapping("/leases/agents/{id}/heartbeat")
+    public ApiResponse<AgentLeaseResult> agentHeartbeat(@RequestHeader("X-License-Instance-Id") String instance, @PathVariable("id") String id) {
+        var r = agents.heartbeat(instance, id);
+        audit.record(LicenseOperation.AGENT_LEASE_HEARTBEAT, instance, "AGENT_EXECUTION", r.accepted(), r.reasonCode(), Map.of("leaseId", id));
+        return response(r);
+    }
+
+    @DeleteMapping("/leases/agents/{id}")
+    public ApiResponse<AgentLeaseResult> agentRelease(@RequestHeader("X-License-Instance-Id") String instance, @PathVariable("id") String id) {
+        var r = agents.release(instance, id);
+        audit.record(LicenseOperation.AGENT_LEASE_RELEASE, instance, "AGENT_EXECUTION", r.accepted(), r.reasonCode(), Map.of("leaseId", id));
+        return response(r);
+    }
+
+    @PostMapping("/usage")
+    public ApiResponse<UsageResult> usage(@RequestHeader("X-License-Instance-Id") String instance, @RequestBody UsageInput i) {
+        var r = metering.consumeAction(i.requestId(), instance, i.meterId(), i.actionType(), i.dimensions());
+        var context = new HashMap<String, Object>();
+        context.put("requestId", i.requestId());
+        context.put("actionType", i.actionType());
+        if (r.counter() != null) {
+            context.put("poolId", r.counter().poolId());
+            context.put("usedAmount", r.counter().usedAmount());
+            context.put("licensedLimit", r.counter().licensedLimit());
+            context.put("periodStart", r.counter().periodStart());
+            context.put("periodEnd", r.counter().periodEnd());
+        }
+        audit.record(LicenseOperation.USAGE_CONSUME, instance, i.meterId(), r.accepted(), r.reasonCode(), context);
+        return response(r);
+    }
+
+    @PostMapping("/cached-entitlements")
+    public ApiResponse<CachedEntitlementResult> cache(@RequestHeader("X-License-Instance-Id") String instance) {
+        var r = cache.issue(instance);
+        audit.record(LicenseOperation.CACHED_ENTITLEMENT_ISSUE, instance, "OFFLINE_CACHE", r.accepted(), r.reasonCode(), r.certificate() == null ? Map.of() : Map.of("certificateId", r.certificate().certificateId(), "expiresAt", r.certificate().expiresAt()));
+        return response(r);
+    }
+
+    public record UserLeaseInput(String userId, AccountType accountType, String sessionId) {
+    }
+
+    public record AgentLeaseInput(String agentId, String executionId, AiCapability capability) {
+    }
+
+    public record UsageInput(String requestId, String meterId, String actionType, Map<String, String> dimensions) {
+    }
+}

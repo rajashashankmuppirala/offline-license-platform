@@ -1,1 +1,16 @@
-package com.enterprise.licensing.client;import com.enterprise.licensing.model.LicenseReasonCode;public final class LicenseClientDeniedException extends RuntimeException{private final LicenseReasonCode reasonCode;public LicenseClientDeniedException(LicenseReasonCode r){super(r.name());reasonCode=r;}public LicenseReasonCode reasonCode(){return reasonCode;}}
+package com.enterprise.licensing.client;
+
+import com.enterprise.licensing.model.LicenseReasonCode;
+
+public final class LicenseClientDeniedException extends RuntimeException {
+    private final LicenseReasonCode reasonCode;
+
+    public LicenseClientDeniedException(LicenseReasonCode r) {
+        super(r.name());
+        reasonCode = r;
+    }
+
+    public LicenseReasonCode reasonCode() {
+        return reasonCode;
+    }
+}

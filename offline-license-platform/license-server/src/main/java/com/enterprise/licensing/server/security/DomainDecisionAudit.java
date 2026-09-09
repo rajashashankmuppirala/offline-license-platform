@@ -5,8 +5,10 @@ import com.enterprise.licensing.engine.audit.AuditService;
 import com.enterprise.licensing.model.LicenseOperation;
 import com.enterprise.licensing.model.LicenseReasonCode;
 import jakarta.servlet.http.HttpServletRequest;
+
 import java.util.Map;
 import java.util.TreeMap;
+
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -20,6 +22,13 @@ public final class DomainDecisionAudit {
     public DomainDecisionAudit(AuditService audit, LicenseRepository licenses) {
         this.audit = audit;
         this.licenses = licenses;
+    }
+
+    private static java.util.Optional<HttpServletRequest> currentRequest() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            return java.util.Optional.of(attributes.getRequest());
+        }
+        return java.util.Optional.empty();
     }
 
     public void record(LicenseOperation operation, String instanceId, String entitlement,
@@ -39,12 +48,5 @@ public final class DomainDecisionAudit {
                 reasonCode,
                 context);
         currentRequest().ifPresent(request -> request.setAttribute(RECORDED_ATTRIBUTE, Boolean.TRUE));
-    }
-
-    private static java.util.Optional<HttpServletRequest> currentRequest() {
-        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
-            return java.util.Optional.of(attributes.getRequest());
-        }
-        return java.util.Optional.empty();
     }
 }

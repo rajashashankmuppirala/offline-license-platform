@@ -1,3 +1,3 @@
 package com.enterprise.licensing.model;
 
-public enum AccountType { HUMAN, SERVICE, SYSTEM }
+public enum AccountType {HUMAN, SERVICE, SYSTEM}

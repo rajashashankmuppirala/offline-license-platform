@@ -1,3 +1,37 @@
 package com.enterprise.licensing.crypto.runtime;
-import com.enterprise.licensing.crypto.EnvelopeJsonCodec;import com.enterprise.licensing.model.*;import java.security.PublicKey;import java.time.Instant;
-public final class CachedEntitlementVerifier{private final SignatureVerifier verifier;private final EnvelopeJsonCodec codec;public CachedEntitlementVerifier(SignatureVerifier v,EnvelopeJsonCodec c){verifier=v;codec=c;}public Result verify(SignedEnvelope envelope,PublicKey serverKey,String expectedServerId,String expectedInstanceId,String expectedInstanceFingerprint,Instant now){var signed=verifier.verify(envelope,ArtifactType.CACHED_ENTITLEMENT,serverKey);if(!signed.valid())return new Result(null,signed.reasonCode());try{var c=codec.payload(envelope,CachedEntitlementCertificate.class);if(!c.licenseServerId().equals(expectedServerId)||!c.instanceId().equals(expectedInstanceId)||!c.instancePublicKeyFingerprint().equals(expectedInstanceFingerprint))return new Result(null,LicenseReasonCode.LICENSE_SERVER_IDENTITY_MISMATCH);if(now.isAfter(c.expiresAt()))return new Result(null,LicenseReasonCode.CACHED_ENTITLEMENT_EXPIRED);return new Result(c,LicenseReasonCode.LICENSE_VALID);}catch(RuntimeException e){return new Result(null,LicenseReasonCode.LICENSE_FORMAT_INVALID);}}public record Result(CachedEntitlementCertificate certificate,LicenseReasonCode reasonCode){public boolean valid(){return certificate!=null;}}}
+
+import com.enterprise.licensing.crypto.EnvelopeJsonCodec;
+import com.enterprise.licensing.model.*;
+
+import java.security.PublicKey;
+import java.time.Instant;
+
+public final class CachedEntitlementVerifier {
+    private final SignatureVerifier verifier;
+    private final EnvelopeJsonCodec codec;
+
+    public CachedEntitlementVerifier(SignatureVerifier v, EnvelopeJsonCodec c) {
+        verifier = v;
+        codec = c;
+    }
+
+    public Result verify(SignedEnvelope envelope, PublicKey serverKey, String expectedServerId, String expectedInstanceId, String expectedInstanceFingerprint, Instant now) {
+        var signed = verifier.verify(envelope, ArtifactType.CACHED_ENTITLEMENT, serverKey);
+        if (!signed.valid()) return new Result(null, signed.reasonCode());
+        try {
+            var c = codec.payload(envelope, CachedEntitlementCertificate.class);
+            if (!c.licenseServerId().equals(expectedServerId) || !c.instanceId().equals(expectedInstanceId) || !c.instancePublicKeyFingerprint().equals(expectedInstanceFingerprint))
+                return new Result(null, LicenseReasonCode.LICENSE_SERVER_IDENTITY_MISMATCH);
+            if (now.isAfter(c.expiresAt())) return new Result(null, LicenseReasonCode.CACHED_ENTITLEMENT_EXPIRED);
+            return new Result(c, LicenseReasonCode.LICENSE_VALID);
+        } catch (RuntimeException e) {
+            return new Result(null, LicenseReasonCode.LICENSE_FORMAT_INVALID);
+        }
+    }
+
+    public record Result(CachedEntitlementCertificate certificate, LicenseReasonCode reasonCode) {
+        public boolean valid() {
+            return certificate != null;
+        }
+    }
+}

@@ -64,7 +64,8 @@ vendor **public** trust anchor from replacement.
 
 Responsible implementation:
 
-- `license-server/src/main/java/com/enterprise/licensing/server/config/ModuleConfiguration.java` — `activationService()` and
+- `license-server/src/main/java/com/enterprise/licensing/server/config/ModuleConfiguration.java` — `activationService()`
+  and
   `activeLicenseVerifier()`
 - `license-server/src/main/resources/application.yml` — `vendor-public-key-file`
 - `license-crypto/src/main/java/com/enterprise/licensing/crypto/runtime/CommercialLicenseVerifier.java` and
@@ -84,9 +85,11 @@ environment, user, agent, and meter capacity. No clone knows that another clone 
 
 Responsible implementation:
 
-- `license-storage/src/main/java/com/enterprise/licensing/storage/identity/SoftwareIdentityProvider.java` — exportable Base64 private key in
+- `license-storage/src/main/java/com/enterprise/licensing/storage/identity/SoftwareIdentityProvider.java` — exportable
+  Base64 private key in
   the persisted identity record; owner-only mode protects against ordinary users, not root
-- `license-engine/src/main/java/com/enterprise/licensing/engine/validation/ActiveLicenseVerifier.java` — binds activation to that copied ID
+- `license-engine/src/main/java/com/enterprise/licensing/engine/validation/ActiveLicenseVerifier.java` — binds
+  activation to that copied ID
   and fingerprint
 - `license-storage/src/main/java/com/enterprise/licensing/storage/integrity/AuthoritativeStateIntegrityService.java`
   and `license-storage/src/main/java/com/enterprise/licensing/storage/integrity/FileTrustedTimeCheckpoint.java`
@@ -174,8 +177,8 @@ classification to **NOT PREVENTABLE WITHOUT HARDWARE TRUST**.
 `LicenseServerIdentityService.publicIdentity()`. The activation envelope is independently verified
 with the vendor key.
 
-**Privileged bypass:** copying the matching server identity, or the entire VM, changes the result to
-**NOT PREVENTABLE WITHOUT HARDWARE TRUST**. The certificate binds to a key, not to non-clonable
+**Privileged bypass:** copying the matching server identity, or the entire VM, changes the result to **NOT PREVENTABLE
+WITHOUT HARDWARE TRUST**. The certificate binds to a key, not to non-clonable
 hardware.
 
 ### Copy the License Server VM
@@ -216,8 +219,8 @@ and a database copied together with the software identity has the same full-clon
 **RAISES COST ONLY — PostgreSQL is not implemented.** There is no PostgreSQL restore path to
 validate. The stale-restore evidence applies only to the wired SQLite implementation.
 
-For SQLite, restoring only an old database while retaining the newer separate checkpoints is
-**DETECTED** by `FileTrustedTimeCheckpoint` sequence comparison and by the full-state digest in
+For SQLite, restoring only an old database while retaining the newer separate checkpoints is **DETECTED** by
+`FileTrustedTimeCheckpoint` sequence comparison and by the full-state digest in
 `AuthoritativeStateIntegrityService`; protected API calls fail closed and recovery becomes
 required. `SqliteBackupService.validateForOriginalIdentity()` also rejects a backup from another
 server identity.
@@ -276,7 +279,8 @@ Responsible implementation:
 - `license-storage/src/main/java/com/enterprise/licensing/storage/repository/SqliteProductInstanceRepository.java`
   — existing-instance branch
 - `license-server/src/main/java/com/enterprise/licensing/server/security/InstanceRequestAuthenticationFilter.java`
-- `examples/kubernetes-example/src/main/java/com/enterprise/licensing/example/kubernetes/SharedInstallationIdentity.java`
+-
+`examples/kubernetes-example/src/main/java/com/enterprise/licensing/example/kubernetes/SharedInstallationIdentity.java`
 
 This design correctly handles replicas within one cluster but has no cryptographic way to
 distinguish those replicas from copies in unrelated clusters.
@@ -442,14 +446,14 @@ still apply on an honest authority, but governance and role separation do not.
 
 ## Control summary by desired outcome
 
-| Desired unauthorized outcome | Honest single-authority result | Result under stated privileged adversary |
-|---|---|---|
-| Extra environments | Atomic limit is **PREVENTED** | Clone authority or share one cluster identity: **NOT PREVENTABLE WITHOUT HARDWARE TRUST** |
-| Extra concurrent users | Last-slot race is **PREVENTED** | Share identity/session/lease or patch product: **RAISES COST ONLY** / **NOT PREVENTABLE WITHOUT HARDWARE TRUST** |
-| Extra named users | Assignment limits/cooldown are **PREVENTED** | Alias people, use privileged override, reseal state, or patch product: **RAISES COST ONLY** |
-| Extra agents | Registration/concurrency race is **PREVENTED** | Alias agents/executions or clone authority: **RAISES COST ONLY** / **NOT PREVENTABLE WITHOUT HARDWARE TRUST** |
-| Extra AI usage | Atomic reported-meter quota is **PREVENTED** | Suppress/mislabel/replay reporting, alter weights, patch product, or clone authority: **NOT PREVENTABLE WITHOUT HARDWARE TRUST** |
-| Access after expiry | Honest server and honest-clock cache deny: **PREVENTED** | Replace trust anchor, control time, restore full snapshot, or patch product: **NOT PREVENTABLE WITHOUT HARDWARE TRUST** |
+| Desired unauthorized outcome | Honest single-authority result                           | Result under stated privileged adversary                                                                                         |
+|------------------------------|----------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| Extra environments           | Atomic limit is **PREVENTED**                            | Clone authority or share one cluster identity: **NOT PREVENTABLE WITHOUT HARDWARE TRUST**                                        |
+| Extra concurrent users       | Last-slot race is **PREVENTED**                          | Share identity/session/lease or patch product: **RAISES COST ONLY** / **NOT PREVENTABLE WITHOUT HARDWARE TRUST**                 |
+| Extra named users            | Assignment limits/cooldown are **PREVENTED**             | Alias people, use privileged override, reseal state, or patch product: **RAISES COST ONLY**                                      |
+| Extra agents                 | Registration/concurrency race is **PREVENTED**           | Alias agents/executions or clone authority: **RAISES COST ONLY** / **NOT PREVENTABLE WITHOUT HARDWARE TRUST**                    |
+| Extra AI usage               | Atomic reported-meter quota is **PREVENTED**             | Suppress/mislabel/replay reporting, alter weights, patch product, or clone authority: **NOT PREVENTABLE WITHOUT HARDWARE TRUST** |
+| Access after expiry          | Honest server and honest-clock cache deny: **PREVENTED** | Replace trust anchor, control time, restore full snapshot, or patch product: **NOT PREVENTABLE WITHOUT HARDWARE TRUST**          |
 
 ## What the implementation can safely claim
 

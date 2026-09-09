@@ -7,6 +7,10 @@ public record NamedSeatOverride(
         String previousUser,
         String replacementUser) {
 
+    private static boolean present(String value) {
+        return value != null && !value.isBlank();
+    }
+
     public boolean completeFor(String releasedUser) {
         return ("EMPLOYEE_DEPARTURE".equals(type) || "ASSIGNMENT_CORRECTION".equals(type))
                 && present(actor)
@@ -15,9 +19,5 @@ public record NamedSeatOverride(
                 && present(replacementUser)
                 && previousUser.equals(releasedUser)
                 && !previousUser.equals(replacementUser);
-    }
-
-    private static boolean present(String value) {
-        return value != null && !value.isBlank();
     }
 }

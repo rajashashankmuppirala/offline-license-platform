@@ -7,7 +7,8 @@ import java.nio.charset.StandardCharsets;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class Ed25519KeysTest {
-    @Test void signsAndVerifiesWithoutPrivateKeyAtVerificationTime() {
+    @Test
+    void signsAndVerifiesWithoutPrivateKeyAtVerificationTime() {
         var pair = Ed25519Keys.generate();
         byte[] payload = "licensed=20".getBytes(StandardCharsets.UTF_8);
         byte[] signature = Ed25519Keys.sign(pair.getPrivate(), payload);

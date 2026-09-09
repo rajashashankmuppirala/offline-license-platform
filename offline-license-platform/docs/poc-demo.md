@@ -12,20 +12,20 @@ at the first failure. The hands-on demo is better for explaining the architectur
 
 ## What the POC achieves
 
-| Capability | Demonstrated behavior | Value |
-|---|---|---|
-| Offline licensing | A vendor Ed25519 key signs a versioned commercial license; runtime needs only the public key | Entitlements work without a vendor or Internet connection |
-| Bound activation | The server generates an identity and proof-bearing request; activation binds its UUID and key fingerprint | Artifacts copied to an independently initialized server are rejected |
-| Environment control | PROD, DR, UAT, QA, DEV, and OTHER allocations are centrally and atomically counted | One customer-wide policy governs multiple installations |
-| PROD/DR lifecycle | REGISTERED, STANDBY, ACTIVE, and DECOMMISSIONED states with atomic failover/failback | Passive DR does not permit two active production authorities |
-| Kubernetes identity | Scaling from 3 to 20 replicas and normal rollout retains one logical registration | Pods are not incorrectly counted as product installations |
-| Human licensing | Named seats, category/product limits, cooldown, and expiring concurrent-user leases | Named and concurrent models remain distinct and centrally governed |
-| Product features | Typed product, feature, and per-product user-capacity decisions | Product code does not parse commercial-license JSON |
-| AI licensing | Registered-agent limits, concurrent execution leases, action weighting, and monthly AEU quota | Human seats and AI capacity remain independently controlled |
-| Outage handling | A signed, instance-bound cache permits bounded product/feature checks; allocation and metering fail closed | Temporary server outage does not create unlimited capacity |
-| Persistence | Activation, identity, instances, leases, assignments, meters, cache issuance, and audit survive restart | Restart cannot reset consumption |
-| Security diagnostics | Signature, state-integrity, stale-restore, expiry, and clock-rollback checks return stable reason codes | Failures are explicit and supportable |
-| Audit and recovery | Domain decisions carry exact reasons/context; coordinated backup validates integrity and identity | Operations can explain and safely preserve licensing state |
+| Capability           | Demonstrated behavior                                                                                      | Value                                                                |
+|----------------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
+| Offline licensing    | A vendor Ed25519 key signs a versioned commercial license; runtime needs only the public key               | Entitlements work without a vendor or Internet connection            |
+| Bound activation     | The server generates an identity and proof-bearing request; activation binds its UUID and key fingerprint  | Artifacts copied to an independently initialized server are rejected |
+| Environment control  | PROD, DR, UAT, QA, DEV, and OTHER allocations are centrally and atomically counted                         | One customer-wide policy governs multiple installations              |
+| PROD/DR lifecycle    | REGISTERED, STANDBY, ACTIVE, and DECOMMISSIONED states with atomic failover/failback                       | Passive DR does not permit two active production authorities         |
+| Kubernetes identity  | Scaling from 3 to 20 replicas and normal rollout retains one logical registration                          | Pods are not incorrectly counted as product installations            |
+| Human licensing      | Named seats, category/product limits, cooldown, and expiring concurrent-user leases                        | Named and concurrent models remain distinct and centrally governed   |
+| Product features     | Typed product, feature, and per-product user-capacity decisions                                            | Product code does not parse commercial-license JSON                  |
+| AI licensing         | Registered-agent limits, concurrent execution leases, action weighting, and monthly AEU quota              | Human seats and AI capacity remain independently controlled          |
+| Outage handling      | A signed, instance-bound cache permits bounded product/feature checks; allocation and metering fail closed | Temporary server outage does not create unlimited capacity           |
+| Persistence          | Activation, identity, instances, leases, assignments, meters, cache issuance, and audit survive restart    | Restart cannot reset consumption                                     |
+| Security diagnostics | Signature, state-integrity, stale-restore, expiry, and clock-rollback checks return stable reason codes    | Failures are explicit and supportable                                |
+| Audit and recovery   | Domain decisions carry exact reasons/context; coordinated backup validates integrity and identity          | Operations can explain and safely preserve licensing state           |
 
 ## Scope and boundaries
 
@@ -187,7 +187,10 @@ examples/sample-product/target/sample-product-1.0.0-SNAPSHOT.jar
 Expected output includes `KEY_PAIR_GENERATED`, `LICENSE_ISSUED`, and:
 
 ```json
-{"valid":true,"reasonCode":"LICENSE_VALID"}
+{
+  "valid": true,
+  "reasonCode": "LICENSE_VALID"
+}
 ```
 
 The script creates:

@@ -14,11 +14,21 @@ public final class TemporarySqliteStore implements AutoCloseable {
         try {
             directory = Files.createTempDirectory("offline-license-test-");
             database = new SqliteDatabase(directory.resolve("license.db"));
-        } catch (IOException e) { throw new IllegalStateException("Unable to create temporary store", e); }
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to create temporary store", e);
+        }
     }
 
-    public SqliteDatabase database() { return database; }
-    public Path directory() { return directory; }
+    public SqliteDatabase database() {
+        return database;
+    }
 
-    @Override public void close() { database.close(); }
+    public Path directory() {
+        return directory;
+    }
+
+    @Override
+    public void close() {
+        database.close();
+    }
 }

@@ -9,7 +9,9 @@ import java.nio.charset.StandardCharsets;
 public final class CanonicalJson {
     private final ObjectMapper objectMapper;
 
-    public CanonicalJson(ObjectMapper objectMapper) { this.objectMapper = objectMapper; }
+    public CanonicalJson(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     public byte[] canonicalize(Object value) {
         try {

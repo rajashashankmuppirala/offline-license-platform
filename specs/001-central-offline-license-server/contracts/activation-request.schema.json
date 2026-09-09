@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://offline-license.example/schemas/activation-request-1.0.json",
+  "title": "Activation Request 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestId",
+    "licenseServerId",
+    "installationPublicKey",
+    "publicKeyFingerprint",
+    "licenseId",
+    "customerId",
+    "nonce",
+    "createdAt",
+    "proofSignature"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "requestId": { "type": "string", "format": "uuid" },
+    "licenseServerId": { "type": "string", "format": "uuid" },
+    "installationPublicKey": { "type": "string", "contentEncoding": "base64" },
+    "publicKeyFingerprint": { "type": "string", "minLength": 43, "maxLength": 43 },
+    "licenseId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "customerId": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "nonce": { "type": "string", "minLength": 22, "maxLength": 128 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "environmentEvidence": {
+      "type": "object",
+      "propertyNames": { "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$" },
+      "additionalProperties": { "type": "string", "maxLength": 500 }
+    },
+    "proofSignature": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "description": "Installation-key proof over canonical request fields excluding this field."
+    }
+  }
+}

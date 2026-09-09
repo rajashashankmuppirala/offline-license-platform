@@ -1,28 +1,239 @@
 package com.enterprise.licensing.client;
-import com.enterprise.licensing.client.cache.FileEntitlementCache;import com.enterprise.licensing.client.identity.ProductInstanceIdentityStore;import com.enterprise.licensing.client.security.*;import com.enterprise.licensing.client.transport.*;import com.enterprise.licensing.crypto.*;import com.enterprise.licensing.crypto.runtime.*;import com.enterprise.licensing.model.*;import com.fasterxml.jackson.databind.*;import java.net.URI;import java.security.PublicKey;import java.time.*;import java.util.*;
-public final class DefaultLicenseClient implements LicenseClient{private final URI base;private final ProductInstanceIdentityStore.Material identity;private final String serverId;private final PublicKey serverKey;private final String adminToken;private final ObjectMapper mapper;private final LicenseTransport transport;private final SignedInstanceRequestFactory signer;private final FileEntitlementCache cache;private final Clock clock;private final Duration timeout;private final CachedEntitlementVerifier cachedVerifier;
- public DefaultLicenseClient(URI base,ProductInstanceIdentityStore.Material identity,String serverId,PublicKey serverKey,String adminToken,ObjectMapper mapper,LicenseTransport transport,java.nio.file.Path cacheFile,Clock clock,Duration timeout){this(base,identity,serverId,serverKey,adminToken,mapper,transport,cacheFile,clock,timeout,TransportSecurityMode.STRICT_HTTPS);}
- public DefaultLicenseClient(URI base,ProductInstanceIdentityStore.Material identity,String serverId,PublicKey serverKey,String adminToken,ObjectMapper mapper,LicenseTransport transport,java.nio.file.Path cacheFile,Clock clock,Duration timeout,TransportSecurityMode securityMode){EndpointSecurity.requireAllowed(base,securityMode==TransportSecurityMode.LOCAL_LOOPBACK_TEST);this.base=base;this.identity=identity;this.serverId=serverId;this.serverKey=serverKey;this.adminToken=adminToken;this.mapper=mapper;this.transport=transport;this.signer=new SignedInstanceRequestFactory(identity,clock);this.cache=new FileEntitlementCache(cacheFile,new EnvelopeJsonCodec(mapper),identity.privateKey().getEncoded());this.clock=clock;this.timeout=timeout;var canonical=new CanonicalJson(mapper);cachedVerifier=new CachedEntitlementVerifier(new RuntimeEnvelopeVerifier(canonical,Set.of("1.0")),new EnvelopeJsonCodec(mapper));}
- @Override public Map<String,Object>status(){try{return mapper.convertValue(root(admin("GET","/api/v1/license/admin/status",new byte[0])).path("data"),Map.class);}catch(Exception e){throw unavailable(e);}}
- @Override public RegisteredProductInstance register(DeploymentType deployment,EnvironmentType environment,ProductId product,String version,Map<String,String>metadata){try{var request=new InstanceRegistrationRequest(identity.identity().instanceId(),identity.identity().publicKey(),product,deployment,environment,version,metadata);var root=root(admin("POST","/api/v1/license/admin/instances/register",mapper.writeValueAsBytes(request)));ensure(root);return mapper.treeToValue(root.path("data").path("instance"),RegisteredProductInstance.class);}catch(LicenseClientDeniedException e){throw e;}catch(Exception e){throw unavailable(e);}}
- @Override public LicenseDecision product(ProductId product){String path="/api/v1/license/runtime/entitlements/products/"+product.value();try{return entitlement(root(runtime("GET",path,new byte[0])),LicenseOperation.PRODUCT_CHECK);}catch(Exception e){return offline(product,null,LicenseOperation.PRODUCT_CHECK);}}
- @Override public LicenseDecision feature(ProductId product,FeatureId feature){String path="/api/v1/license/runtime/entitlements/products/"+product.value()+"/features/"+feature.value();try{return entitlement(root(runtime("GET",path,new byte[0])),LicenseOperation.FEATURE_CHECK);}catch(Exception e){return offline(product,feature,LicenseOperation.FEATURE_CHECK);}}
- @Override public LicenseDecision productUserCapacity(ProductId product,String userId){String encoded=java.net.URLEncoder.encode(userId,java.nio.charset.StandardCharsets.UTF_8).replace("+","%20");String path="/api/v1/license/runtime/entitlements/products/"+product.value()+"/users/"+encoded+"/capacity";try{return entitlement(root(runtime("GET",path,new byte[0])),LicenseOperation.PRODUCT_USER_CAPACITY_CHECK);}catch(Exception e){return decision(false,LicenseReasonCode.LICENSE_SERVER_UNAVAILABLE,LicenseOperation.PRODUCT_USER_CAPACITY_CHECK);}}
- @Override public ConcurrentUserLease acquireUser(String user,AccountType type,String session){return centralLease("POST","/api/v1/license/runtime/leases/users",Map.of("userId",user,"accountType",type,"sessionId",session),ConcurrentUserLease.class);}
- @Override public ConcurrentUserLease heartbeatUser(String id){return centralLease("POST","/api/v1/license/runtime/leases/users/"+id+"/heartbeat",Map.of(),ConcurrentUserLease.class);}
- @Override public void releaseUser(String id){centralVoid("DELETE","/api/v1/license/runtime/leases/users/"+id);}
- @Override public AgentExecutionLease acquireAgentExecution(String agent,String execution,AiCapability capability){return centralLease("POST","/api/v1/license/runtime/leases/agents",Map.of("agentId",agent,"executionId",execution,"capability",capability),AgentExecutionLease.class);}
- @Override public AgentExecutionLease heartbeatAgentExecution(String id){return centralLease("POST","/api/v1/license/runtime/leases/agents/"+id+"/heartbeat",Map.of(),AgentExecutionLease.class);}
- @Override public void releaseAgentExecution(String id){centralVoid("DELETE","/api/v1/license/runtime/leases/agents/"+id);}
- @Override public UsageCounter consumeAction(String meter,String actionType,Map<String,String>dimensions){return consumeAction(UUID.randomUUID().toString(),meter,actionType,dimensions);}
- @Override public UsageCounter consumeAction(String requestId,String meter,String actionType,Map<String,String>dimensions){var input=new HashMap<String,Object>();input.put("requestId",requestId);input.put("meterId",meter);input.put("actionType",actionType);input.put("dimensions",dimensions==null?Map.of():dimensions);return centralLease("POST","/api/v1/license/runtime/usage",input,UsageCounter.class);}
- @Override public SignedEnvelope refreshCachedEntitlement(){try{var root=root(runtime("POST","/api/v1/license/runtime/cached-entitlements",new byte[0]));ensure(root);var envelope=mapper.treeToValue(root.path("data").path("envelope"),SignedEnvelope.class);cache.save(envelope);return envelope;}catch(LicenseClientDeniedException e){throw e;}catch(Exception e){throw unavailable(e);}}
- private <T>T centralLease(String method,String path,Object input,Class<T>type){try{var root=root(runtime(method,path,mapper.writeValueAsBytes(input)));ensure(root);JsonNode node=root.path("data");JsonNode value=node.has("lease")?node.path("lease"):node.path("counter");return mapper.treeToValue(value,type);}catch(LicenseClientDeniedException e){throw e;}catch(Exception e){throw unavailable(e);}}
- private LicenseDecision entitlement(JsonNode root,LicenseOperation operation)throws Exception{JsonNode data=root.path("data");if(data.isObject()&&!data.isEmpty())return mapper.treeToValue(data,LicenseDecision.class);LicenseReasonCode reason=LicenseReasonCode.valueOf(root.path("reasonCode").asText("INTERNAL_ERROR"));return decision(root.path("success").asBoolean(),reason,operation);}
- private void centralVoid(String method,String path){try{ensure(root(runtime(method,path,new byte[0])));}catch(LicenseClientDeniedException e){throw e;}catch(Exception e){throw unavailable(e);}}
- private LicenseDecision offline(ProductId product,FeatureId feature,LicenseOperation operation){var envelope=cache.load().orElse(null);if(envelope==null)return decision(false,LicenseReasonCode.LICENSE_SERVER_UNAVAILABLE,operation);var result=cachedVerifier.verify(envelope,serverKey,serverId,identity.identity().instanceId(),identity.identity().publicKeyFingerprint(),clock.instant());if(!result.valid())return decision(false,result.reasonCode(),operation);var certificate=result.certificate();if(!certificate.permittedOfflineOperations().contains(operation))return decision(false,LicenseReasonCode.CACHED_OPERATION_NOT_ALLOWED,operation);var entitled=certificate.products().stream().filter(p->p.id().equals(product)&&p.enabled()).findFirst();if(entitled.isEmpty())return decision(false,LicenseReasonCode.PRODUCT_NOT_ENTITLED,operation);if(feature!=null&&!entitled.get().features().contains(feature))return decision(false,LicenseReasonCode.FEATURE_NOT_ENTITLED,operation);return decision(true,LicenseReasonCode.LICENSE_VALID,operation);}
- private LicenseDecision decision(boolean allowed,LicenseReasonCode reason,LicenseOperation operation){return new LicenseDecision(allowed,reason,operation,new DecisionMetadata(UUID.randomUUID(),clock.instant(),"client-offline"),Map.of("source","SIGNED_CACHE"));}
- private LicenseTransport.Response runtime(String method,String path,byte[]body)throws Exception{var signed=signer.sign(method,path,body);var headers=new HashMap<>(signed.headers());headers.put("Content-Type","application/json");return transport.exchange(method,base.resolve(path),headers,body,timeout);}
- private LicenseTransport.Response admin(String method,String path,byte[]body)throws Exception{return transport.exchange(method,base.resolve(path),Map.of("Authorization","Bearer "+adminToken,"Content-Type","application/json"),body,timeout);}
- private JsonNode root(LicenseTransport.Response response)throws Exception{return mapper.readTree(response.body());}private void ensure(JsonNode root){if(!root.path("success").asBoolean())throw new LicenseClientDeniedException(LicenseReasonCode.valueOf(root.path("reasonCode").asText("INTERNAL_ERROR")));}private static LicenseClientDeniedException unavailable(Exception e){return new LicenseClientDeniedException(LicenseReasonCode.LICENSE_SERVER_UNAVAILABLE);}
+
+import com.enterprise.licensing.client.cache.FileEntitlementCache;
+import com.enterprise.licensing.client.identity.ProductInstanceIdentityStore;
+import com.enterprise.licensing.client.security.*;
+import com.enterprise.licensing.client.transport.*;
+import com.enterprise.licensing.crypto.*;
+import com.enterprise.licensing.crypto.runtime.*;
+import com.enterprise.licensing.model.*;
+import com.fasterxml.jackson.databind.*;
+
+import java.net.URI;
+import java.security.PublicKey;
+import java.time.*;
+import java.util.*;
+
+public final class DefaultLicenseClient implements LicenseClient {
+    private final URI base;
+    private final ProductInstanceIdentityStore.Material identity;
+    private final String serverId;
+    private final PublicKey serverKey;
+    private final String adminToken;
+    private final ObjectMapper mapper;
+    private final LicenseTransport transport;
+    private final SignedInstanceRequestFactory signer;
+    private final FileEntitlementCache cache;
+    private final Clock clock;
+    private final Duration timeout;
+    private final CachedEntitlementVerifier cachedVerifier;
+
+    public DefaultLicenseClient(URI base, ProductInstanceIdentityStore.Material identity, String serverId, PublicKey serverKey, String adminToken, ObjectMapper mapper, LicenseTransport transport, java.nio.file.Path cacheFile, Clock clock, Duration timeout) {
+        this(base, identity, serverId, serverKey, adminToken, mapper, transport, cacheFile, clock, timeout, TransportSecurityMode.STRICT_HTTPS);
+    }
+
+    public DefaultLicenseClient(URI base, ProductInstanceIdentityStore.Material identity, String serverId, PublicKey serverKey, String adminToken, ObjectMapper mapper, LicenseTransport transport, java.nio.file.Path cacheFile, Clock clock, Duration timeout, TransportSecurityMode securityMode) {
+        EndpointSecurity.requireAllowed(base, securityMode == TransportSecurityMode.LOCAL_LOOPBACK_TEST);
+        this.base = base;
+        this.identity = identity;
+        this.serverId = serverId;
+        this.serverKey = serverKey;
+        this.adminToken = adminToken;
+        this.mapper = mapper;
+        this.transport = transport;
+        this.signer = new SignedInstanceRequestFactory(identity, clock);
+        this.cache = new FileEntitlementCache(cacheFile, new EnvelopeJsonCodec(mapper), identity.privateKey().getEncoded());
+        this.clock = clock;
+        this.timeout = timeout;
+        var canonical = new CanonicalJson(mapper);
+        cachedVerifier = new CachedEntitlementVerifier(new RuntimeEnvelopeVerifier(canonical, Set.of("1.0")), new EnvelopeJsonCodec(mapper));
+    }
+
+    private static LicenseClientDeniedException unavailable(Exception e) {
+        return new LicenseClientDeniedException(LicenseReasonCode.LICENSE_SERVER_UNAVAILABLE);
+    }
+
+    @Override
+    public Map<String, Object> status() {
+        try {
+            return mapper.convertValue(root(admin("GET", "/api/v1/license/admin/status", new byte[0])).path("data"), Map.class);
+        } catch (Exception e) {
+            throw unavailable(e);
+        }
+    }
+
+    @Override
+    public RegisteredProductInstance register(DeploymentType deployment, EnvironmentType environment, ProductId product, String version, Map<String, String> metadata) {
+        try {
+            var request = new InstanceRegistrationRequest(identity.identity().instanceId(), identity.identity().publicKey(), product, deployment, environment, version, metadata);
+            var root = root(admin("POST", "/api/v1/license/admin/instances/register", mapper.writeValueAsBytes(request)));
+            ensure(root);
+            return mapper.treeToValue(root.path("data").path("instance"), RegisteredProductInstance.class);
+        } catch (LicenseClientDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw unavailable(e);
+        }
+    }
+
+    @Override
+    public LicenseDecision product(ProductId product) {
+        String path = "/api/v1/license/runtime/entitlements/products/" + product.value();
+        try {
+            return entitlement(root(runtime("GET", path, new byte[0])), LicenseOperation.PRODUCT_CHECK);
+        } catch (Exception e) {
+            return offline(product, null, LicenseOperation.PRODUCT_CHECK);
+        }
+    }
+
+    @Override
+    public LicenseDecision feature(ProductId product, FeatureId feature) {
+        String path = "/api/v1/license/runtime/entitlements/products/" + product.value() + "/features/" + feature.value();
+        try {
+            return entitlement(root(runtime("GET", path, new byte[0])), LicenseOperation.FEATURE_CHECK);
+        } catch (Exception e) {
+            return offline(product, feature, LicenseOperation.FEATURE_CHECK);
+        }
+    }
+
+    @Override
+    public LicenseDecision productUserCapacity(ProductId product, String userId) {
+        String encoded = java.net.URLEncoder.encode(userId, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        String path = "/api/v1/license/runtime/entitlements/products/" + product.value() + "/users/" + encoded + "/capacity";
+        try {
+            return entitlement(root(runtime("GET", path, new byte[0])), LicenseOperation.PRODUCT_USER_CAPACITY_CHECK);
+        } catch (Exception e) {
+            return decision(false, LicenseReasonCode.LICENSE_SERVER_UNAVAILABLE, LicenseOperation.PRODUCT_USER_CAPACITY_CHECK);
+        }
+    }
+
+    @Override
+    public ConcurrentUserLease acquireUser(String user, AccountType type, String session) {
+        return centralLease("POST", "/api/v1/license/runtime/leases/users", Map.of("userId", user, "accountType", type, "sessionId", session), ConcurrentUserLease.class);
+    }
+
+    @Override
+    public ConcurrentUserLease heartbeatUser(String id) {
+        return centralLease("POST", "/api/v1/license/runtime/leases/users/" + id + "/heartbeat", Map.of(), ConcurrentUserLease.class);
+    }
+
+    @Override
+    public void releaseUser(String id) {
+        centralVoid("DELETE", "/api/v1/license/runtime/leases/users/" + id);
+    }
+
+    @Override
+    public AgentExecutionLease acquireAgentExecution(String agent, String execution, AiCapability capability) {
+        return centralLease("POST", "/api/v1/license/runtime/leases/agents", Map.of("agentId", agent, "executionId", execution, "capability", capability), AgentExecutionLease.class);
+    }
+
+    @Override
+    public AgentExecutionLease heartbeatAgentExecution(String id) {
+        return centralLease("POST", "/api/v1/license/runtime/leases/agents/" + id + "/heartbeat", Map.of(), AgentExecutionLease.class);
+    }
+
+    @Override
+    public void releaseAgentExecution(String id) {
+        centralVoid("DELETE", "/api/v1/license/runtime/leases/agents/" + id);
+    }
+
+    @Override
+    public UsageCounter consumeAction(String meter, String actionType, Map<String, String> dimensions) {
+        return consumeAction(UUID.randomUUID().toString(), meter, actionType, dimensions);
+    }
+
+    @Override
+    public UsageCounter consumeAction(String requestId, String meter, String actionType, Map<String, String> dimensions) {
+        var input = new HashMap<String, Object>();
+        input.put("requestId", requestId);
+        input.put("meterId", meter);
+        input.put("actionType", actionType);
+        input.put("dimensions", dimensions == null ? Map.of() : dimensions);
+        return centralLease("POST", "/api/v1/license/runtime/usage", input, UsageCounter.class);
+    }
+
+    @Override
+    public SignedEnvelope refreshCachedEntitlement() {
+        try {
+            var root = root(runtime("POST", "/api/v1/license/runtime/cached-entitlements", new byte[0]));
+            ensure(root);
+            var envelope = mapper.treeToValue(root.path("data").path("envelope"), SignedEnvelope.class);
+            cache.save(envelope);
+            return envelope;
+        } catch (LicenseClientDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw unavailable(e);
+        }
+    }
+
+    private <T> T centralLease(String method, String path, Object input, Class<T> type) {
+        try {
+            var root = root(runtime(method, path, mapper.writeValueAsBytes(input)));
+            ensure(root);
+            JsonNode node = root.path("data");
+            JsonNode value = node.has("lease") ? node.path("lease") : node.path("counter");
+            return mapper.treeToValue(value, type);
+        } catch (LicenseClientDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw unavailable(e);
+        }
+    }
+
+    private LicenseDecision entitlement(JsonNode root, LicenseOperation operation) throws Exception {
+        JsonNode data = root.path("data");
+        if (data.isObject() && !data.isEmpty()) return mapper.treeToValue(data, LicenseDecision.class);
+        LicenseReasonCode reason = LicenseReasonCode.valueOf(root.path("reasonCode").asText("INTERNAL_ERROR"));
+        return decision(root.path("success").asBoolean(), reason, operation);
+    }
+
+    private void centralVoid(String method, String path) {
+        try {
+            ensure(root(runtime(method, path, new byte[0])));
+        } catch (LicenseClientDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw unavailable(e);
+        }
+    }
+
+    private LicenseDecision offline(ProductId product, FeatureId feature, LicenseOperation operation) {
+        var envelope = cache.load().orElse(null);
+        if (envelope == null) return decision(false, LicenseReasonCode.LICENSE_SERVER_UNAVAILABLE, operation);
+        var result = cachedVerifier.verify(envelope, serverKey, serverId, identity.identity().instanceId(), identity.identity().publicKeyFingerprint(), clock.instant());
+        if (!result.valid()) return decision(false, result.reasonCode(), operation);
+        var certificate = result.certificate();
+        if (!certificate.permittedOfflineOperations().contains(operation))
+            return decision(false, LicenseReasonCode.CACHED_OPERATION_NOT_ALLOWED, operation);
+        var entitled = certificate.products().stream().filter(p -> p.id().equals(product) && p.enabled()).findFirst();
+        if (entitled.isEmpty()) return decision(false, LicenseReasonCode.PRODUCT_NOT_ENTITLED, operation);
+        if (feature != null && !entitled.get().features().contains(feature))
+            return decision(false, LicenseReasonCode.FEATURE_NOT_ENTITLED, operation);
+        return decision(true, LicenseReasonCode.LICENSE_VALID, operation);
+    }
+
+    private LicenseDecision decision(boolean allowed, LicenseReasonCode reason, LicenseOperation operation) {
+        return new LicenseDecision(allowed, reason, operation, new DecisionMetadata(UUID.randomUUID(), clock.instant(), "client-offline"), Map.of("source", "SIGNED_CACHE"));
+    }
+
+    private LicenseTransport.Response runtime(String method, String path, byte[] body) throws Exception {
+        var signed = signer.sign(method, path, body);
+        var headers = new HashMap<>(signed.headers());
+        headers.put("Content-Type", "application/json");
+        return transport.exchange(method, base.resolve(path), headers, body, timeout);
+    }
+
+    private LicenseTransport.Response admin(String method, String path, byte[] body) throws Exception {
+        return transport.exchange(method, base.resolve(path), Map.of("Authorization", "Bearer " + adminToken, "Content-Type", "application/json"), body, timeout);
+    }
+
+    private JsonNode root(LicenseTransport.Response response) throws Exception {
+        return mapper.readTree(response.body());
+    }
+
+    private void ensure(JsonNode root) {
+        if (!root.path("success").asBoolean())
+            throw new LicenseClientDeniedException(LicenseReasonCode.valueOf(root.path("reasonCode").asText("INTERNAL_ERROR")));
+    }
 }

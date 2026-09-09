@@ -7,7 +7,8 @@ public record SubscriptionEntitlement(String type, String tier, Instant validFro
     public SubscriptionEntitlement {
         type = Validation.required(type, "type");
         tier = Validation.required(tier, "tier");
-        if (validFrom == null || validUntil == null || !validUntil.isAfter(validFrom)) throw new IllegalArgumentException("invalid subscription interval");
+        if (validFrom == null || validUntil == null || !validUntil.isAfter(validFrom))
+            throw new IllegalArgumentException("invalid subscription interval");
         Validation.nonNegative(gracePeriodDays, "gracePeriodDays");
     }
 

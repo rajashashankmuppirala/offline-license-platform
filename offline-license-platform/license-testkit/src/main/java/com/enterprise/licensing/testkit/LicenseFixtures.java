@@ -7,7 +7,8 @@ import java.util.List;
 import java.util.Set;
 
 public final class LicenseFixtures {
-    private LicenseFixtures() {}
+    private LicenseFixtures() {
+    }
 
     public static CommercialLicense aInc() {
         return new CommercialLicense("1.0", "LIC-AINC-2026-001",

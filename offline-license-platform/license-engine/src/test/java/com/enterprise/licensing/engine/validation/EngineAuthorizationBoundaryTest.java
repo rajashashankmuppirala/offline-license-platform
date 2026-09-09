@@ -12,14 +12,20 @@ import com.enterprise.licensing.engine.instance.InstanceRegistrationService;
 import com.enterprise.licensing.engine.metering.MeteringService;
 import com.enterprise.licensing.engine.user.UserLicenseService;
 import com.enterprise.licensing.model.*;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
 class EngineAuthorizationBoundaryTest {
+    private static void assertDenied(LicenseReasonCode reasonCode) {
+        assertThat(reasonCode).isEqualTo(LicenseReasonCode.CLOCK_ROLLBACK_DETECTED);
+    }
+
     @Test
     void directEngineCallsCannotBypassSecurityValidation() {
         Set<LicenseOperation> observed = new HashSet<>();
@@ -62,9 +68,5 @@ class EngineAuthorizationBoundaryTest {
                 LicenseOperation.AGENT_LEASE_HEARTBEAT, LicenseOperation.USAGE_CONSUME,
                 LicenseOperation.CACHED_ENTITLEMENT_ISSUE, LicenseOperation.PRODUCT_CHECK,
                 LicenseOperation.FEATURE_CHECK);
-    }
-
-    private static void assertDenied(LicenseReasonCode reasonCode) {
-        assertThat(reasonCode).isEqualTo(LicenseReasonCode.CLOCK_ROLLBACK_DETECTED);
     }
 }

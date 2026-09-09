@@ -12,13 +12,16 @@ import picocli.CommandLine.Command;
                 ActivationCommands.InspectRequest.class, ActivationCommands.Activate.class,
                 ActivationCommands.InspectCertificate.class})
 public final class LicenseIssuerCli implements Runnable {
-    @Override public void run() { CommandLine.usage(this, System.out); }
-
     public static int execute(String... args) {
         return new CommandLine(new LicenseIssuerCli()).execute(args);
     }
 
     public static void main(String[] args) {
         System.exit(execute(args));
+    }
+
+    @Override
+    public void run() {
+        CommandLine.usage(this, System.out);
     }
 }

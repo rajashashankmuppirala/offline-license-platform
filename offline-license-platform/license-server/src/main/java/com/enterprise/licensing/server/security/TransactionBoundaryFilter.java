@@ -8,12 +8,16 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
+
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/** Keeps a licensing decision, its mutation, and the audit filter's append in one transaction. */
+/**
+ * Keeps a licensing decision, its mutation, and the audit filter's append in one transaction.
+ */
 @Component
 @Order(0)
 public final class TransactionBoundaryFilter extends OncePerRequestFilter {
@@ -47,7 +51,7 @@ public final class TransactionBoundaryFilter extends OncePerRequestFilter {
         integrity.beginVerifiedRequest();
         try {
             if (request.getRequestURI().equals("/api/v1/license/admin/storage/backup")) {
-                chain.doFilter(request,response);
+                chain.doFilter(request, response);
                 integrity.seal();
                 return;
             }
@@ -70,6 +74,8 @@ public final class TransactionBoundaryFilter extends OncePerRequestFilter {
     }
 
     private static final class FilterFailure extends RuntimeException {
-        private FilterFailure(Exception cause) { super(cause); }
+        private FilterFailure(Exception cause) {
+            super(cause);
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.enterprise.licensing.model.ArtifactType;
 import com.enterprise.licensing.model.SignedEnvelope;
 import com.enterprise.licensing.crypto.CanonicalJson;
 import com.enterprise.licensing.crypto.runtime.LocalIdentityEnvelopeSigner;
+
 import java.nio.charset.StandardCharsets;
 
 public final class LicenseServerIdentityService {

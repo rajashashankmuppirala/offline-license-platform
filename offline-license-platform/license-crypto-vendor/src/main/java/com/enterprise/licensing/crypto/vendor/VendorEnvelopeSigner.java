@@ -11,11 +11,15 @@ import java.util.Base64;
 
 public final class VendorEnvelopeSigner implements PayloadSigner {
     private final CanonicalJson canonicalJson;
-    public VendorEnvelopeSigner(CanonicalJson canonicalJson) { this.canonicalJson = canonicalJson; }
+
+    public VendorEnvelopeSigner(CanonicalJson canonicalJson) {
+        this.canonicalJson = canonicalJson;
+    }
 
     @Override
     public SignedEnvelope sign(Object payload, String schemaVersion, ArtifactType artifactType, KeyPair vendorKeyPair) {
-        if (artifactType == ArtifactType.CACHED_ENTITLEMENT) throw new IllegalArgumentException("vendor signer does not sign server cache artifacts");
+        if (artifactType == ArtifactType.CACHED_ENTITLEMENT)
+            throw new IllegalArgumentException("vendor signer does not sign server cache artifacts");
         byte[] canonical = canonicalJson.canonicalize(payload);
         String keyId = Ed25519Keys.fingerprint(vendorKeyPair.getPublic());
         byte[] input = EnvelopeSupport.signatureInput(artifactType, schemaVersion, EnvelopeSupport.ALGORITHM, keyId, canonical);

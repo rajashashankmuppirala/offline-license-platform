@@ -1,3 +1,32 @@
 package com.enterprise.licensing.engine.audit;
-import com.enterprise.licensing.engine.ports.*;import com.enterprise.licensing.model.*;import java.util.Map;
-public final class AuditService{private final AuditRepository repository;private final AuditRedactor redactor;private final TimeSource time;private final IdGenerator ids;private final boolean successfulHeartbeats;public AuditService(AuditRepository r,AuditRedactor x,TimeSource t,IdGenerator i,boolean heartbeats){repository=r;redactor=x;time=t;ids=i;successfulHeartbeats=heartbeats;}public AuditEvent record(String customer,String license,String instance,LicenseOperation operation,String entitlement,boolean allowed,LicenseReasonCode reason,Map<String,String>context){if(allowed&&!successfulHeartbeats&&(operation==LicenseOperation.USER_LEASE_HEARTBEAT||operation==LicenseOperation.AGENT_LEASE_HEARTBEAT))return null;return repository.append(ids.next(),time.now(),customer,license,instance,operation,entitlement,allowed,reason,redactor.redact(context));}public AuditEvent record(LicenseDecision d,String customer,String license,String instance,String entitlement){return record(customer,license,instance,d.operation(),entitlement,d.allowed(),d.reasonCode(),d.diagnosticContext());}}
+
+import com.enterprise.licensing.engine.ports.*;
+import com.enterprise.licensing.model.*;
+
+import java.util.Map;
+
+public final class AuditService {
+    private final AuditRepository repository;
+    private final AuditRedactor redactor;
+    private final TimeSource time;
+    private final IdGenerator ids;
+    private final boolean successfulHeartbeats;
+
+    public AuditService(AuditRepository r, AuditRedactor x, TimeSource t, IdGenerator i, boolean heartbeats) {
+        repository = r;
+        redactor = x;
+        time = t;
+        ids = i;
+        successfulHeartbeats = heartbeats;
+    }
+
+    public AuditEvent record(String customer, String license, String instance, LicenseOperation operation, String entitlement, boolean allowed, LicenseReasonCode reason, Map<String, String> context) {
+        if (allowed && !successfulHeartbeats && (operation == LicenseOperation.USER_LEASE_HEARTBEAT || operation == LicenseOperation.AGENT_LEASE_HEARTBEAT))
+            return null;
+        return repository.append(ids.next(), time.now(), customer, license, instance, operation, entitlement, allowed, reason, redactor.redact(context));
+    }
+
+    public AuditEvent record(LicenseDecision d, String customer, String license, String instance, String entitlement) {
+        return record(customer, license, instance, d.operation(), entitlement, d.allowed(), d.reasonCode(), d.diagnosticContext());
+    }
+}

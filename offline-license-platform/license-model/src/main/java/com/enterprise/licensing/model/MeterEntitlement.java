@@ -4,6 +4,7 @@ public record MeterEntitlement(String id, MeterPeriod period, long limit, String
     public MeterEntitlement(String id, MeterPeriod period, long limit) {
         this(id, period, limit, EntitlementPool.CUSTOMER_WIDE);
     }
+
     public MeterEntitlement {
         id = Validation.required(id, "meterId");
         if (period == null) throw new IllegalArgumentException("period is required");

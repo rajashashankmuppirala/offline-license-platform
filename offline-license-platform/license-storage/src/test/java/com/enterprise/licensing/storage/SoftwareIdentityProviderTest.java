@@ -5,17 +5,24 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.enterprise.licensing.engine.ports.TimeSource;
 import com.enterprise.licensing.storage.identity.SoftwareIdentityProvider;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class SoftwareIdentityProviderTest {
-    @TempDir Path temp;
+    @TempDir
+    Path temp;
+
+    private static TimeSource fixedTime() {
+        return () -> Instant.parse("2026-01-01T00:00:00Z");
+    }
 
     @Test
     void createsRestrictiveStableIdentityAndReloadsIt() throws Exception {
@@ -29,7 +36,8 @@ class SoftwareIdentityProviderTest {
         try {
             assertThat(Files.getPosixFilePermissions(file)).isEqualTo(Set.of(
                     PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
-        } catch (UnsupportedOperationException ignored) { }
+        } catch (UnsupportedOperationException ignored) {
+        }
     }
 
     @Test
@@ -39,9 +47,5 @@ class SoftwareIdentityProviderTest {
         Files.writeString(file, "");
         assertThatThrownBy(() -> new SoftwareIdentityProvider(file, fixedTime(), Map.of()).loadOrCreate())
                 .hasMessageContaining("Unable to load");
-    }
-
-    private static TimeSource fixedTime() {
-        return () -> Instant.parse("2026-01-01T00:00:00Z");
     }
 }
