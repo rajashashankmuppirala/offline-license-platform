@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0",
+  "licenseId": "LIC-AINC-2026-001",
+  "customer": {"customerId":"AINC","companyName":"A Inc.","contactEmail":"a@d.com"},
+  "subscription": {"type":"SUBSCRIPTION","tier":"TEAMS","validFrom":"2026-01-01T00:00:00Z","validUntil":"2030-12-31T23:59:59Z","gracePeriodDays":7},
+  "activation": {"required":true,"maxLicenseServers":1,"renewalMayReuseActivation":true},
+  "environments": [
+    {"type":"PRODUCTION","maxInstances":1,"activePassive":false},
+    {"type":"DISASTER_RECOVERY","maxInstances":1,"activePassive":true},
+    {"type":"UAT","maxInstances":2,"activePassive":false},
+    {"type":"QA","maxInstances":2,"activePassive":false},
+    {"type":"DEVELOPMENT","maxInstances":5,"activePassive":false},
+    {"type":"OTHER","maxInstances":0,"activePassive":false}
+  ],
+  "users": {"maxNamedUsers":500,"maxConcurrentUsers":20,"categories":[{"category":"REPORTING","limit":100},{"category":"DQ_ISSUE_MANAGER","limit":100}]},
+  "products": [
+    {"id":"VALIDATOR","enabled":true,"maxUsers":500,"features":["TABLEAU","ORACLE_ANALYTICS","COGNOS"]},
+    {"id":"DATA_MANAGER","enabled":true,"maxUsers":500,"features":[]},
+    {"id":"DATA_QUALITY","enabled":true,"maxUsers":500,"features":[]},
+    {"id":"DATA_FLOW","enabled":true,"maxUsers":500,"features":[]}
+  ],
+  "ai": {"enabled":true,"maxRegisteredAgents":10,"maxConcurrentAgentExecutions":3,"capabilities":["INTERACTIVE_ASSISTANT","AUTONOMOUS_AGENT","SCHEDULED_AGENT","MCP_TOOL_EXECUTION"],"meters":[{"id":"AI_EXECUTION_UNIT","period":"MONTHLY","limit":100000}]},
+  "issuedAt": "2025-12-01T00:00:00Z",
+  "licenseSequence": 1,
+  "activeProductionClassLimit": 1,
+  "revocationIds": []
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:enterprise-licensing:commercial-license:1.0",
+  "title": "Commercial License 1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "licenseId", "customer", "subscription", "activation", "environments", "users", "products", "ai", "issuedAt", "licenseSequence", "activeProductionClassLimit", "revocationIds"],
+  "$defs": {
+    "nonBlank": {"type": "string", "minLength": 1},
+    "code": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,63}$"},
+    "poolId": {"type": "string", "minLength": 1, "maxLength": 100},
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "maxInstances", "activePassive"],
+      "properties": {
+        "type": {"enum": ["PRODUCTION", "DISASTER_RECOVERY", "UAT", "QA", "DEVELOPMENT", "OTHER"]},
+        "maxInstances": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "activePassive": {"type": "boolean"},
+        "poolId": {"$ref": "#/$defs/poolId"}
+      }
+    },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "limit"],
+      "properties": {
+        "category": {"enum": ["STANDARD", "REPORTING", "DQ_ISSUE_MANAGER"]},
+        "limit": {"type": "integer", "minimum": 0, "maximum": 2147483647}
+      }
+    },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "enabled", "maxUsers", "features"],
+      "properties": {
+        "id": {"$ref": "#/$defs/code"},
+        "enabled": {"type": "boolean"},
+        "maxUsers": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "features": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/code"}}
+      }
+    },
+    "meter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "period", "limit"],
+      "properties": {
+        "id": {"$ref": "#/$defs/code"},
+        "period": {"const": "MONTHLY"},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 9223372036854775807},
+        "poolId": {"$ref": "#/$defs/poolId"}
+      }
+    }
+  },
+  "properties": {
+    "schemaVersion": {"const": "1.0"},
+    "licenseId": {"type": "string", "minLength": 1, "maxLength": 200},
+    "customer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["customerId", "companyName", "contactEmail"],
+      "properties": {
+        "customerId": {"type": "string", "minLength": 1, "maxLength": 200},
+        "companyName": {"type": "string", "minLength": 1, "maxLength": 300},
+        "contactEmail": {"type": "string", "format": "email", "maxLength": 320}
+      }
+    },
+    "subscription": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "tier", "validFrom", "validUntil", "gracePeriodDays"],
+      "properties": {
+        "type": {"enum": ["SUBSCRIPTION", "PERPETUAL"]},
+        "tier": {"$ref": "#/$defs/code"},
+        "validFrom": {"type": "string", "format": "date-time"},
+        "validUntil": {"type": "string", "format": "date-time"},
+        "gracePeriodDays": {"type": "integer", "minimum": 0, "maximum": 365}
+      }
+    },
+    "activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "maxLicenseServers", "renewalMayReuseActivation"],
+      "properties": {
+        "required": {"type": "boolean"},
+        "maxLicenseServers": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+        "renewalMayReuseActivation": {"type": "boolean"}
+      }
+    },
+    "environments": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/environment"}},
+    "users": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxNamedUsers", "maxConcurrentUsers", "categories"],
+      "properties": {
+        "maxNamedUsers": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "maxConcurrentUsers": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "categories": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/category"}}
+      }
+    },
+    "products": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/product"}},
+    "ai": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "maxRegisteredAgents", "maxConcurrentAgentExecutions", "capabilities", "meters"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "maxRegisteredAgents": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "maxConcurrentAgentExecutions": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "capabilities": {"type": "array", "uniqueItems": true, "items": {"enum": ["INTERACTIVE_ASSISTANT", "AUTONOMOUS_AGENT", "SCHEDULED_AGENT", "MCP_TOOL_EXECUTION"]}},
+        "meters": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/meter"}}
+      }
+    },
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "licenseSequence": {"type": "integer", "minimum": 1, "maximum": 9223372036854775807},
+    "activeProductionClassLimit": {"type": "integer", "minimum": 1, "maximum": 2147483647},
+    "revocationIds": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/nonBlank"}}
+  }
+}

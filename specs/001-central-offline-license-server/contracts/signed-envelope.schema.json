@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://offline-license.example/schemas/signed-envelope-v1.json",
+  "title": "Signed Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "envelopeVersion",
+    "artifactType",
+    "payloadSchemaVersion",
+    "algorithm",
+    "keyId",
+    "payload",
+    "signature"
+  ],
+  "properties": {
+    "envelopeVersion": { "const": "1" },
+    "artifactType": {
+      "enum": ["COMMERCIAL_LICENSE", "ACTIVATION_CERTIFICATE", "CACHED_ENTITLEMENT"]
+    },
+    "payloadSchemaVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" },
+    "algorithm": { "const": "Ed25519" },
+    "keyId": { "type": "string", "minLength": 43, "maxLength": 43 },
+    "payload": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "description": "Exact RFC 8785 canonical JSON payload bytes; Base64URL without padding."
+    },
+    "signature": {
+      "type": "string",
+      "contentEncoding": "base64url",
+      "description": "Ed25519 signature; Base64URL without padding."
+    }
+  }
+}

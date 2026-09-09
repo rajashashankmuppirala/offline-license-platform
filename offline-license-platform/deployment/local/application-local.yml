@@ -1,0 +1,7 @@
+server:
+  address: 127.0.0.1
+  port: 8443
+licensing:
+  data-file: .local/license-server/data/license-server.db
+  identity-directory: .local/license-server/identity
+  checkpoint-file: .local/license-server/identity/trusted-time.checkpoint

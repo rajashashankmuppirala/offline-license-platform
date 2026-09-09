@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: offline-license-server
+server:
+  address: ${LICENSE_SERVER_BIND_ADDRESS:127.0.0.1}
+  port: ${LICENSE_SERVER_PORT:8443}
+  ssl:
+    enabled: ${LICENSE_SERVER_TLS_ENABLED:false}
+    key-store: ${LICENSE_SERVER_TLS_KEYSTORE:}
+    key-store-password: ${LICENSE_SERVER_TLS_KEYSTORE_PASSWORD:}
+licensing:
+  vendor-public-key-file: ${LICENSE_SERVER_VENDOR_PUBLIC_KEY_FILE:}
+  data-file: ${LICENSE_SERVER_DATA_FILE:.local/license-server/data/license-server.db}
+  identity-directory: ${LICENSE_SERVER_IDENTITY_DIR:.local/license-server/identity}
+  checkpoint-file: ${LICENSE_SERVER_CHECKPOINT_FILE:.local/license-server/identity/trusted-time.checkpoint}
+  state-integrity-file: ${LICENSE_SERVER_STATE_INTEGRITY_FILE:}
+  admin-token: ${LICENSE_SERVER_ADMIN_TOKEN:}
+  user-lease-duration: PT5M
+  agent-lease-duration: PT5M
+  heartbeat-interval: PT1M
+  cached-entitlement-duration: PT24H
+  clock-rollback-tolerance: PT5M
+  aeu-weights:
+    INTERACTIVE_AI_REQUEST: ${LICENSE_AEU_WEIGHT_INTERACTIVE:1}
+    AUTONOMOUS_AGENT_RUN: ${LICENSE_AEU_WEIGHT_AUTONOMOUS:5}
+    AGENT_TOOL_INVOCATION: ${LICENSE_AEU_WEIGHT_TOOL:1}
+    SCHEDULED_AGENT_RUN: ${LICENSE_AEU_WEIGHT_SCHEDULED:5}
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: licenseServer
+        liveness:
+          include: livenessState
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

@@ -1,0 +1,16 @@
+package com.enterprise.licensing.engine.ai;
+
+import com.enterprise.licensing.engine.activation.LicenseRepository;
+import com.enterprise.licensing.engine.ports.IdGenerator;
+import com.enterprise.licensing.engine.ports.TimeSource;
+import com.enterprise.licensing.model.*;
+import java.time.Duration;
+import com.enterprise.licensing.engine.validation.OperationAuthorizer;
+import com.enterprise.licensing.engine.instance.ProductInstanceRepository;
+
+public final class AgentLeaseService{
+ private final LicenseRepository licenses;private final AiLicenseRepository agents;private final TimeSource time;private final IdGenerator ids;private final Duration duration;private final OperationAuthorizer authorizer;private final ProductInstanceRepository instances;
+ public AgentLeaseService(LicenseRepository l,AiLicenseRepository a,TimeSource t,IdGenerator i,Duration d,OperationAuthorizer v,ProductInstanceRepository p){licenses=l;agents=a;time=t;ids=i;duration=d;authorizer=v;instances=p;}
+ public AgentLeaseResult acquire(String agentId,String executionId,String instanceId,AiCapability capability){var authorization=authorizer.evaluate(LicenseOperation.AGENT_LEASE_ACQUIRE);if(!authorization.allowed())return AgentLeaseResult.denied(authorization.reasonCode());var instance=instances.find(instanceId).orElse(null);if(instance==null||instance.state()!=InstanceState.ACTIVE)return AgentLeaseResult.denied(LicenseReasonCode.INSTANCE_NOT_REGISTERED);var state=licenses.active().orElse(null);if(state==null)return AgentLeaseResult.denied(LicenseReasonCode.LICENSE_SERVER_NOT_ACTIVATED);var ai=state.license().ai();if(!ai.enabled())return AgentLeaseResult.denied(LicenseReasonCode.AI_NOT_ENTITLED);if(!ai.capabilities().contains(capability))return AgentLeaseResult.denied(LicenseReasonCode.AI_CAPABILITY_NOT_ENTITLED);String pool=state.license().environments().stream().filter(e->e.type()==instance.environmentType()).findFirst().map(EnvironmentEntitlement::poolId).orElse(EntitlementPool.CUSTOMER_WIDE);var now=time.now();boolean grace=now.isAfter(state.license().subscription().validUntil());if(grace&&agents.agents().stream().noneMatch(a->a.agentId().equals(agentId)&&!a.registeredAt().isAfter(state.license().subscription().validUntil())))return AgentLeaseResult.denied(LicenseReasonCode.LICENSE_EXPIRED);var result=agents.acquire(ids.next().toString(),agentId,executionId,instanceId,pool,capability,ai.maxConcurrentAgentExecutions(),now,duration);return grace&&result.accepted()?AgentLeaseResult.accepted(result.lease(),LicenseReasonCode.LICENSE_GRACE_PERIOD):result;}
+ public AgentLeaseResult heartbeat(String instance,String id){var authorization=authorizer.evaluate(LicenseOperation.AGENT_LEASE_HEARTBEAT);if(!authorization.allowed())return AgentLeaseResult.denied(authorization.reasonCode());if(agents.leases().stream().noneMatch(l->l.leaseId().equals(id)&&l.productInstanceId().equals(instance)))return AgentLeaseResult.denied(LicenseReasonCode.INSTANCE_AUTHENTICATION_FAILED);return agents.heartbeat(id,time.now(),duration);}public AgentLeaseResult release(String instance,String id){if(agents.leases().stream().noneMatch(l->l.leaseId().equals(id)&&l.productInstanceId().equals(instance)))return AgentLeaseResult.denied(LicenseReasonCode.INSTANCE_AUTHENTICATION_FAILED);return agents.release(id,time.now());}
+}
