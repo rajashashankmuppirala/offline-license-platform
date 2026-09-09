@@ -36,7 +36,7 @@ sequenceDiagram
     participant Admin as Customer administrator
     participant Server as License Server
     participant DB as SQLite
-    participant Product as Product + DefaultLicenseClient
+    participant Product as Product application + embedded Java client
 
     Vendor->>Vendor: Generate Ed25519 key pair (private key stays vendor-side)
     Vendor->>Vendor: Issue signed commercial license
@@ -106,6 +106,13 @@ offline operations. The client encrypts that cache with AES-GCM using material d
 verifies the server signature and pinned public key. During a server outage, only product/feature checks within the cache
 expiry/grace window are available. New environment registration, named-user login, agent execution, lease allocation, and
 AI/AEU consumption remain central-authority operations; the POC grants no offline AEU allowance.
+
+`DefaultLicenseClient` lives in the `license-client-java` module and is instantiated inside the product JVM. In the local
+demo, `examples/sample-product` creates it in `SampleProductApplication.main`; in a real integration, the customer product
+creates the same client (or another `LicenseClient` implementation) and calls it from its own business code. The client
+holds the product instance identity, signs requests, sends them to the server, verifies responses and cached entitlements,
+and exposes typed decisions and lease/usage methods. The License Server is a separate Spring Boot process and owns the
+authoritative SQLite state.
 
 Trusted time combines signed highest-seen checkpoints with the local clock. A rollback beyond the tolerance is rejected,
 which prevents extending an expired entitlement by simply setting the host clock backward. State-integrity checkpoints
