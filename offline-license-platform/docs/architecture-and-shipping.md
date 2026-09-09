@@ -17,14 +17,14 @@ runtime semantics can be exercised locally.
 
 ```mermaid
 flowchart LR
-    V[Vendor issuer CLI\nprivate signing key] -->|commercial license + activation certificate| X[Offline file transfer]
-    X --> I[License Server activation import]
-    I --> S[License Server\nSpring Boot]
-    S --> D[(SQLite\nauthoritative state)]
-    P[Sample product / Java client] -->|signed HTTPS or loopback requests| S
-    S -->|signed short-lived entitlement cache| P
-    S --> R[Audit + diagnostics]
-    S --> B[Backup / restore]
+    V["Vendor issuer CLI<br/>private signing key"] -->|"commercial license and activation certificate"| X["Offline file transfer"]
+    X --> I["License Server activation import"]
+    I --> S["License Server<br/>Spring Boot"]
+    S --> D[("SQLite<br/>authoritative state")]
+    P["Sample product and Java client"] -->|"signed HTTPS or loopback requests"| S
+    S -->|"signed short-lived entitlement cache"| P
+    S --> R["Audit and diagnostics"]
+    S --> B["Backup and restore"]
 ```
 
 ## The main lifecycle
@@ -41,7 +41,7 @@ sequenceDiagram
     Vendor->>Vendor: Generate Ed25519 key pair (private key stays vendor-side)
     Vendor->>Vendor: Issue signed commercial license
     Admin->>Server: Create activation request
-    Server->>Server: Generate/persist server UUID and signing key
+    Server->>Server: Generate and persist server UUID and signing key
     Server-->>Admin: Request with server ID, public key, fingerprint, proof
     Admin->>Vendor: Transfer activation request
     Vendor->>Vendor: Verify request proof and license policy
@@ -50,14 +50,14 @@ sequenceDiagram
     Server->>Server: Verify vendor signature, certificate binding, dates, policy
     Server->>DB: Store active license, activation, instance, audit event
     Product->>Server: Register logical instance with signed instance key
-    Product->>Server: Check product/feature entitlement
-    Server->>DB: Verify integrity checkpoint; authorize transaction
+    Product->>Server: Check product or feature entitlement
+    Server->>DB: Verify integrity checkpoint and authorize transaction
     Server-->>Product: Decision and optional signed cache
-    Product->>Server: Acquire/heartbeat/release user or agent lease
-    Product->>Server: Consume AI/AEU meter with request idempotency key
+    Product->>Server: Acquire, heartbeat, or release user or agent lease
+    Product->>Server: Consume AI or AEU meter with request idempotency key
     Server->>DB: Atomic lease or meter update + audit + checkpoint
-    Server-->>Product: Allow/deny with stable reason code
-    Product->>Product: If outage, verify cached product/feature entitlement
+    Server-->>Product: Allow or deny with stable reason code
+    Product->>Product: If outage, verify cached product or feature entitlement
 ```
 
 ## Shipped modules
