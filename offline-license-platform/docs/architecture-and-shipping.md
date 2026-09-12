@@ -28,6 +28,10 @@ flowchart LR
 
 ## The main lifecycle
 
+The sequence below is used when `LICENSE_SERVER_ACTIVATION_REQUIRED=true`, which is the default. For an initial
+validation-only rollout, set it to `false` and skip activation-request generation and vendor certificate issuance; the
+customer imports the signed commercial license directly. Product-facing runtime APIs remain the same in both modes.
+
 ```mermaid
 sequenceDiagram
     autonumber

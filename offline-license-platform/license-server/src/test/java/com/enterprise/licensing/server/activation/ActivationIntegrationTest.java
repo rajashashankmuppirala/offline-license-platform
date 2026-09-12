@@ -12,6 +12,8 @@ import com.enterprise.licensing.crypto.vendor.ActivationSigner;
 import com.enterprise.licensing.crypto.vendor.CommercialLicenseSigner;
 import com.enterprise.licensing.crypto.vendor.VendorEnvelopeSigner;
 import com.enterprise.licensing.engine.activation.ActivationService;
+import com.enterprise.licensing.engine.activation.RenewalImpactAssessment;
+import com.enterprise.licensing.engine.validation.ActiveLicenseVerifier;
 import com.enterprise.licensing.engine.identity.LicenseServerIdentityService;
 import com.enterprise.licensing.model.ActivationCertificate;
 import com.enterprise.licensing.model.LicenseReasonCode;
@@ -74,6 +76,46 @@ class ActivationIntegrationTest {
         var wrongCustomer = new ActivationSigner(signer).sign(certificate(identity, license.licenseId(), "OTHER"), vendor);
         assertThat(service("wrong-customer", identity, vendor.getPublic()).importArtifacts(licenseEnvelope, wrongCustomer).reasonCode())
                 .isEqualTo(LicenseReasonCode.LICENSE_SERVER_IDENTITY_MISMATCH);
+    }
+
+    @Test
+    void signedLicenseCanBeRegisteredWithoutCertificateWhenActivationIsDisabled() {
+        var vendor = Ed25519Keys.generate();
+        var signer = new VendorEnvelopeSigner(canonical);
+        var license = LicenseFixtures.aInc();
+        var licenseEnvelope = new CommercialLicenseSigner(signer).sign(license, vendor);
+        var identity = identity("license-only");
+        var database = new SqliteDatabase(temp.resolve("license-only/license.db"));
+        var repository = new SqliteLicenseRepository(database, new SqliteImmediateTransactionRunner(database), mapper);
+        var runtime = new RuntimeEnvelopeVerifier(canonical, Set.of("1.0"));
+        var codec = new EnvelopeJsonCodec(mapper);
+        var service = new ActivationService(new CommercialLicenseVerifier(runtime, codec),
+                new ActivationVerifier(runtime, codec), () -> vendor.getPublic(), identity, repository, () -> now,
+                RenewalImpactAssessment.none(), false);
+
+        var result = service.importArtifacts(licenseEnvelope, null);
+
+        assertThat(result.accepted()).isTrue();
+        var persisted = repository.active().orElseThrow();
+        assertThat(persisted.license()).isEqualTo(license);
+        assertThat(persisted.activation()).isNull();
+        assertThat(persisted.activationEnvelope()).isNull();
+        var verifier = new ActiveLicenseVerifier(new CommercialLicenseVerifier(runtime, codec),
+                new ActivationVerifier(runtime, codec), () -> vendor.getPublic(), identity::publicIdentity, false);
+        assertThat(verifier.verify(persisted).allowed()).isTrue();
+    }
+
+    @Test
+    void certificateRemainsMandatoryWhenActivationIsEnabled() {
+        var vendor = Ed25519Keys.generate();
+        var signer = new VendorEnvelopeSigner(canonical);
+        var licenseEnvelope = new CommercialLicenseSigner(signer).sign(LicenseFixtures.aInc(), vendor);
+
+        var result = service("activation-required", identity("activation-required"), vendor.getPublic())
+                .importArtifacts(licenseEnvelope, null);
+
+        assertThat(result.accepted()).isFalse();
+        assertThat(result.reasonCode()).isEqualTo(LicenseReasonCode.LICENSE_SERVER_NOT_ACTIVATED);
     }
 
     private LicenseServerIdentityService identity(String directory) {

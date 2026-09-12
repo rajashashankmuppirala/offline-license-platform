@@ -156,7 +156,7 @@ public class ModuleConfiguration {
     }
 
     @Bean
-    ActivationService activationService(RuntimeEnvelopeVerifier v, EnvelopeJsonCodec codec, @Value("${licensing.vendor-public-key-file:}") String keyFile, LicenseServerIdentityService i, SqliteLicenseRepository r, TimeSource t, RenewalImpactAssessment impact) {
+    ActivationService activationService(RuntimeEnvelopeVerifier v, EnvelopeJsonCodec codec, @Value("${licensing.vendor-public-key-file:}") String keyFile, LicenseServerIdentityService i, SqliteLicenseRepository r, TimeSource t, RenewalImpactAssessment impact, @Value("${licensing.activation-required:true}") boolean activationRequired) {
         return new ActivationService(new CommercialLicenseVerifier(v, codec), new ActivationVerifier(v, codec), () -> {
             if (keyFile.isBlank()) throw new IllegalStateException("Vendor public key file is not configured");
             try {
@@ -164,7 +164,7 @@ public class ModuleConfiguration {
             } catch (Exception e) {
                 throw new IllegalStateException("Cannot load vendor public key", e);
             }
-        }, i, r, t, impact);
+        }, i, r, t, impact, activationRequired);
     }
 
     @Bean
@@ -213,8 +213,8 @@ public class ModuleConfiguration {
     }
 
     @Bean
-    LicenseStatusService licenseStatusService(LicenseServerIdentityService i, SqliteLicenseRepository l, SqliteProductInstanceRepository p, SqliteUserLicenseRepository u, SqliteAiRepository a, SqliteMeteringRepository m, TimeSource t, RecoveryService r) {
-        return new LicenseStatusService(i, l, p, u, a, m, t, r);
+    LicenseStatusService licenseStatusService(LicenseServerIdentityService i, SqliteLicenseRepository l, SqliteProductInstanceRepository p, SqliteUserLicenseRepository u, SqliteAiRepository a, SqliteMeteringRepository m, TimeSource t, RecoveryService r, @Value("${licensing.activation-required:true}") boolean activationRequired) {
+        return new LicenseStatusService(i, l, p, u, a, m, t, r, activationRequired);
     }
 
     @Bean
@@ -228,7 +228,7 @@ public class ModuleConfiguration {
     }
 
     @Bean
-    ActiveLicenseVerifier activeLicenseVerifier(RuntimeEnvelopeVerifier v, EnvelopeJsonCodec codec, @Value("${licensing.vendor-public-key-file:}") String keyFile, LicenseServerIdentityService identity) {
+    ActiveLicenseVerifier activeLicenseVerifier(RuntimeEnvelopeVerifier v, EnvelopeJsonCodec codec, @Value("${licensing.vendor-public-key-file:}") String keyFile, LicenseServerIdentityService identity, @Value("${licensing.activation-required:true}") boolean activationRequired) {
         return new ActiveLicenseVerifier(new CommercialLicenseVerifier(v, codec), new ActivationVerifier(v, codec), () -> {
             if (keyFile.isBlank()) throw new IllegalStateException("Vendor public key file is not configured");
             try {
@@ -236,7 +236,7 @@ public class ModuleConfiguration {
             } catch (Exception e) {
                 throw new IllegalStateException("Cannot load vendor public key", e);
             }
-        }, identity::publicIdentity);
+        }, identity::publicIdentity, activationRequired);
     }
 
     @Bean
@@ -266,8 +266,8 @@ public class ModuleConfiguration {
     }
 
     @Bean
-    RecoveryService recoveryService(SqliteLicenseRepository l, LicenseServerIdentityService i, TrustedTimeService t, AuditService a) {
-        return new RecoveryService(l, i, t, a, false);
+    RecoveryService recoveryService(SqliteLicenseRepository l, LicenseServerIdentityService i, TrustedTimeService t, AuditService a, @Value("${licensing.activation-required:true}") boolean activationRequired) {
+        return new RecoveryService(l, i, t, a, activationRequired, false);
     }
 
     @Bean

@@ -44,6 +44,8 @@ public final class SqliteLicenseRepository implements LicenseRepository {
     @Override
     public void activate(LicenseServerIdentity identity, CommercialLicense license, SignedEnvelope licenseEnvelope,
                          ActivationCertificate certificate, SignedEnvelope activationEnvelope, Instant importedAt) {
+        if ((certificate == null) != (activationEnvelope == null))
+            throw new IllegalArgumentException("Activation certificate and envelope must either both be present or both be absent");
         transactions.write(() -> {
             upsertIdentity(identity);
             execute("UPDATE commercial_license SET active=0 WHERE active=1");
@@ -53,10 +55,12 @@ public final class SqliteLicenseRepository implements LicenseRepository {
                     license.subscription().validFrom().toString(), license.subscription().validUntil().toString(),
                     license.subscription().graceUntil().toString(), importedAt.toString());
             execute("UPDATE activation_certificate SET active=0 WHERE active=1");
-            execute("INSERT INTO activation_certificate(activation_id,license_id,server_id,public_key_fingerprint,envelope_json,issued_at,active) VALUES(?,?,?,?,?,?,1) " +
-                            "ON CONFLICT(activation_id) DO UPDATE SET license_id=excluded.license_id,server_id=excluded.server_id,public_key_fingerprint=excluded.public_key_fingerprint,envelope_json=excluded.envelope_json,issued_at=excluded.issued_at,active=1",
-                    certificate.activationId(), certificate.licenseId(), certificate.licenseServerId().toString(), certificate.publicKeyFingerprint(),
-                    codec.write(activationEnvelope), certificate.issuedAt().toString());
+            if (certificate != null) {
+                execute("INSERT INTO activation_certificate(activation_id,license_id,server_id,public_key_fingerprint,envelope_json,issued_at,active) VALUES(?,?,?,?,?,?,1) " +
+                                "ON CONFLICT(activation_id) DO UPDATE SET license_id=excluded.license_id,server_id=excluded.server_id,public_key_fingerprint=excluded.public_key_fingerprint,envelope_json=excluded.envelope_json,issued_at=excluded.issued_at,active=1",
+                        certificate.activationId(), certificate.licenseId(), certificate.licenseServerId().toString(), certificate.publicKeyFingerprint(),
+                        codec.write(activationEnvelope), certificate.issuedAt().toString());
+            }
             return null;
         });
     }
@@ -64,13 +68,14 @@ public final class SqliteLicenseRepository implements LicenseRepository {
     @Override
     public Optional<ActiveLicenseState> active() {
         return transactions.read(() -> database.withConnection(connection -> {
-            try (var statement = connection.prepareStatement("SELECT l.envelope_json,a.envelope_json,l.imported_at FROM commercial_license l CROSS JOIN activation_certificate a WHERE l.active=1 AND a.active=1")) {
+            try (var statement = connection.prepareStatement("SELECT l.envelope_json,a.envelope_json,l.imported_at FROM commercial_license l LEFT JOIN activation_certificate a ON a.active=1 AND a.license_id=l.license_id WHERE l.active=1")) {
                 try (ResultSet result = statement.executeQuery()) {
                     if (!result.next()) return Optional.empty();
                     var licenseEnvelope = codec.read(result.getString(1));
-                    var activationEnvelope = codec.read(result.getString(2));
+                    var activationEnvelope = result.getString(2) == null ? null : codec.read(result.getString(2));
                     return Optional.of(new ActiveLicenseState(codec.payload(licenseEnvelope, CommercialLicense.class), licenseEnvelope,
-                            codec.payload(activationEnvelope, ActivationCertificate.class), activationEnvelope, Instant.parse(result.getString(3))));
+                            activationEnvelope == null ? null : codec.payload(activationEnvelope, ActivationCertificate.class),
+                            activationEnvelope, Instant.parse(result.getString(3))));
                 }
             } catch (Exception e) {
                 throw new SqliteStorageException("Unable to read active license", e);

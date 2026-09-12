@@ -54,6 +54,18 @@ class RecoveryIntegrationTest {
         assertThat(audit.events).singleElement().extracting(AuditEvent::operation).isEqualTo(LicenseOperation.RECOVERY_RECONCILE);
     }
 
+    @Test
+    void licenseOnlyStateIsHealthyWhenActivationIsDisabled() {
+        var identity = identity(temp.resolve("license-only/identity.json"));
+        var licenseOnly = new ActiveLicenseState(LicenseFixtures.aInc(), null, null, null, now);
+        var recovery = new RecoveryService(new Repository(licenseOnly), identity,
+                new TrustedTimeService(new MemoryTime(now, 0), () -> now, Duration.ofMinutes(5)),
+                new MemoryAudit().service(), false, true);
+
+        assertThat(recovery.state()).isEqualTo(RecoveryState.ACTIVE);
+        assertThat(recovery.reasonCode()).isEqualTo(LicenseReasonCode.LICENSE_VALID);
+    }
+
     private RecoveryService service(LicenseRepository repository, LicenseServerIdentityService identity, TrustedTimeRepository time) {
         return new RecoveryService(repository, identity, new TrustedTimeService(time, () -> now, Duration.ofMinutes(5)), new MemoryAudit().service());
     }

@@ -17,14 +17,23 @@ public final class ActiveLicenseVerifier implements ActiveStateVerifier {
     private final ActivationVerifier activations;
     private final Supplier<PublicKey> vendorPublicKey;
     private final Supplier<LicenseServerIdentity> localIdentity;
+    private final boolean activationRequired;
 
     public ActiveLicenseVerifier(CommercialLicenseVerifier licenses, ActivationVerifier activations,
                                  Supplier<PublicKey> vendorPublicKey,
                                  Supplier<LicenseServerIdentity> localIdentity) {
+        this(licenses, activations, vendorPublicKey, localIdentity, true);
+    }
+
+    public ActiveLicenseVerifier(CommercialLicenseVerifier licenses, ActivationVerifier activations,
+                                 Supplier<PublicKey> vendorPublicKey,
+                                 Supplier<LicenseServerIdentity> localIdentity,
+                                 boolean activationRequired) {
         this.licenses = licenses;
         this.activations = activations;
         this.vendorPublicKey = vendorPublicKey;
         this.localIdentity = localIdentity;
+        this.activationRequired = activationRequired;
     }
 
     @Override
@@ -53,7 +62,7 @@ public final class ActiveLicenseVerifier implements ActiveStateVerifier {
             if (hasCertificate != hasEnvelope) {
                 return LicenseValidationResult.denied(LicenseReasonCode.STATE_INTEGRITY_FAILURE);
             }
-            return state.license().activation().required()
+            return activationRequired
                     ? LicenseValidationResult.denied(LicenseReasonCode.LICENSE_SERVER_NOT_ACTIVATED)
                     : LicenseValidationResult.allowed(false);
         }

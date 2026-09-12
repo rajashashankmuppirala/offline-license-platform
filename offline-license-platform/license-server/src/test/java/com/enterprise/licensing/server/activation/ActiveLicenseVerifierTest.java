@@ -75,6 +75,21 @@ class ActiveLicenseVerifierTest {
     }
 
     @Test
+    void permitsVerifiedLicenseWithoutActivationOnlyWhenConfigured() {
+        var serverIdentity = identity();
+        var fixture = fixture(serverIdentity);
+        var licenseOnly = new ActiveLicenseState(
+                fixture.state().license(), fixture.state().licenseEnvelope(), null, null, now);
+        var runtime = new RuntimeEnvelopeVerifier(canonical, Set.of("1.0"));
+        var codec = new EnvelopeJsonCodec(mapper);
+        var verifier = new ActiveLicenseVerifier(new CommercialLicenseVerifier(runtime, codec),
+                new ActivationVerifier(runtime, codec), () -> fixture.vendor().getPublic(),
+                () -> serverIdentity, false);
+
+        assertThat(verifier.verify(licenseOnly).allowed()).isTrue();
+    }
+
+    @Test
     void rejectsACommercialEnvelopeAlteredInPersistentStorage() {
         var identity = identity();
         var fixture = fixture(identity);

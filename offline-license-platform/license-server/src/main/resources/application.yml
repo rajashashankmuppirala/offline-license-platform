@@ -9,6 +9,7 @@ server:
     key-store: ${LICENSE_SERVER_TLS_KEYSTORE:}
     key-store-password: ${LICENSE_SERVER_TLS_KEYSTORE_PASSWORD:}
 licensing:
+  activation-required: ${LICENSE_SERVER_ACTIVATION_REQUIRED:true}
   vendor-public-key-file: ${LICENSE_SERVER_VENDOR_PUBLIC_KEY_FILE:}
   data-file: ${LICENSE_SERVER_DATA_FILE:.local/license-server/data/license-server.db}
   identity-directory: ${LICENSE_SERVER_IDENTITY_DIR:.local/license-server/identity}

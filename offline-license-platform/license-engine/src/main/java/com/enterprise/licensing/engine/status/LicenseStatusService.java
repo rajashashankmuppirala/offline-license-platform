@@ -22,8 +22,13 @@ public final class LicenseStatusService {
     private final MeteringRepository meters;
     private final TimeSource time;
     private final RecoveryService recovery;
+    private final boolean activationRequired;
 
     public LicenseStatusService(LicenseServerIdentityService identity, LicenseRepository licenses, ProductInstanceRepository instances, UserLicenseRepository users, AiLicenseRepository ai, MeteringRepository meters, TimeSource time, RecoveryService recovery) {
+        this(identity, licenses, instances, users, ai, meters, time, recovery, true);
+    }
+
+    public LicenseStatusService(LicenseServerIdentityService identity, LicenseRepository licenses, ProductInstanceRepository instances, UserLicenseRepository users, AiLicenseRepository ai, MeteringRepository meters, TimeSource time, RecoveryService recovery, boolean activationRequired) {
         this.identity = identity;
         this.licenses = licenses;
         this.instances = instances;
@@ -32,6 +37,7 @@ public final class LicenseStatusService {
         this.meters = meters;
         this.time = time;
         this.recovery = recovery;
+        this.activationRequired = activationRequired;
     }
 
     public Map<String, Object> status() {
@@ -41,6 +47,8 @@ public final class LicenseStatusService {
         var active = licenses.active();
         result.put("serverId", server.licenseServerId());
         result.put("activationState", active.isPresent() ? "ACTIVE" : "UNACTIVATED");
+        result.put("activationRequired", activationRequired);
+        result.put("activationCertificatePresent", active.map(v -> v.activation() != null).orElse(false));
         result.put("recoveryState", recovery.state());
         result.put("reasonCode", recovery.reasonCode());
         result.put("licenseId", active.map(v -> v.license().licenseId()).orElse(""));

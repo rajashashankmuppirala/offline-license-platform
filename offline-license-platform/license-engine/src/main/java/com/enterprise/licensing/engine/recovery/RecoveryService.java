@@ -13,20 +13,28 @@ public final class RecoveryService {
     private final LicenseServerIdentityService identity;
     private final TrustedTimeService trustedTime;
     private final AuditService audit;
+    private final boolean activationRequired;
     private volatile RecoveryState state;
     private volatile LicenseReasonCode reasonCode;
 
     public RecoveryService(LicenseRepository licenses, LicenseServerIdentityService identity,
                            TrustedTimeService trustedTime, AuditService audit) {
-        this(licenses, identity, trustedTime, audit, true);
+        this(licenses, identity, trustedTime, audit, true, true);
     }
 
     public RecoveryService(LicenseRepository licenses, LicenseServerIdentityService identity,
                            TrustedTimeService trustedTime, AuditService audit, boolean assessOnCreate) {
+        this(licenses, identity, trustedTime, audit, true, assessOnCreate);
+    }
+
+    public RecoveryService(LicenseRepository licenses, LicenseServerIdentityService identity,
+                           TrustedTimeService trustedTime, AuditService audit,
+                           boolean activationRequired, boolean assessOnCreate) {
         this.licenses = licenses;
         this.identity = identity;
         this.trustedTime = trustedTime;
         this.audit = audit;
+        this.activationRequired = activationRequired;
         this.state = RecoveryState.UNACTIVATED;
         this.reasonCode = LicenseReasonCode.LICENSE_SERVER_NOT_ACTIVATED;
         if (assessOnCreate) assess();
@@ -37,8 +45,9 @@ public final class RecoveryService {
         if (active.isEmpty()) return update(RecoveryState.UNACTIVATED, LicenseReasonCode.LICENSE_SERVER_NOT_ACTIVATED);
         var activation = active.get().activation();
         var server = identity.publicIdentity();
-        if (activation == null || !activation.licenseServerId().equals(server.licenseServerId())
-                || !activation.publicKeyFingerprint().equals(server.publicKeyFingerprint()))
+        if (activationRequired && (activation == null
+                || !activation.licenseServerId().equals(server.licenseServerId())
+                || !activation.publicKeyFingerprint().equals(server.publicKeyFingerprint())))
             return update(RecoveryState.RECOVERY_REQUIRED, LicenseReasonCode.LICENSE_SERVER_IDENTITY_MISMATCH);
         var trusted = trustedTime.validateAndAdvance();
         if (!trusted.accepted()) return update(RecoveryState.RECOVERY_REQUIRED, trusted.reasonCode());

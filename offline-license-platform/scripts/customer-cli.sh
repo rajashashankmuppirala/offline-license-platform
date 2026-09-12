@@ -9,7 +9,8 @@ case "$command" in
   list-usage) method=GET; path=/api/v1/license/admin/utilization;;
   audit) method=GET; path=/api/v1/license/admin/audit;;
   generate-activation-request) method=POST; path=/api/v1/license/admin/activation/request; body=${1:?Provide request JSON file};;
-  import-license|import-activation) method=POST; path=/api/v1/license/admin/activation/import; body=${1:?Provide import bundle JSON file};;
+  import-license) method=POST; path=/api/v1/license/admin/licenses/import; body=${1:?Provide signed commercial license JSON file};;
+  import-activation) method=POST; path=/api/v1/license/admin/activation/import; body=${1:?Provide activation import bundle JSON file};;
   failover|failback) method=POST; path=/api/v1/license/admin/instances/$command; body=${1:?Provide handoff JSON file};;
   backup|validate-restore) method=POST; target=${1:?Provide absolute database path}; escaped=$(printf '%s' "$target" | sed 's/\\/\\\\/g; s/"/\\"/g'); inline_body="{\"path\":\"$escaped\"}"; if [ "$command" = backup ]; then path=/api/v1/license/admin/storage/backup; else path=/api/v1/license/admin/storage/restore/validate; fi;;
   *) echo "Usage: $0 {license-status|generate-activation-request FILE|import-license FILE|import-activation FILE|list-instances|list-usage|audit|failover FILE|failback FILE|backup PATH|validate-restore PATH}" >&2; exit 2;;

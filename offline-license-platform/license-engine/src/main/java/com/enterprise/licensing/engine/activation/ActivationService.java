@@ -19,25 +19,34 @@ public final class ActivationService {
     private final LicenseRepository repository;
     private final TimeSource timeSource;
     private final RenewalImpactAssessment renewalImpact;
+    private final boolean activationRequired;
 
     public ActivationService(CommercialLicenseVerifier licenseVerifier, ActivationVerifier activationVerifier,
                              PublicKey vendorPublicKey, LicenseServerIdentityService identityService,
                              LicenseRepository repository, TimeSource timeSource) {
         this(licenseVerifier, activationVerifier, () -> vendorPublicKey, identityService, repository, timeSource,
-                RenewalImpactAssessment.none());
+                RenewalImpactAssessment.none(), true);
     }
 
     public ActivationService(CommercialLicenseVerifier licenseVerifier, ActivationVerifier activationVerifier,
                              Supplier<PublicKey> vendorPublicKey, LicenseServerIdentityService identityService,
                              LicenseRepository repository, TimeSource timeSource) {
         this(licenseVerifier, activationVerifier, vendorPublicKey, identityService, repository, timeSource,
-                RenewalImpactAssessment.none());
+                RenewalImpactAssessment.none(), true);
     }
 
     public ActivationService(CommercialLicenseVerifier licenseVerifier, ActivationVerifier activationVerifier,
                              Supplier<PublicKey> vendorPublicKey, LicenseServerIdentityService identityService,
                              LicenseRepository repository, TimeSource timeSource,
                              RenewalImpactAssessment renewalImpact) {
+        this(licenseVerifier, activationVerifier, vendorPublicKey, identityService, repository, timeSource,
+                renewalImpact, true);
+    }
+
+    public ActivationService(CommercialLicenseVerifier licenseVerifier, ActivationVerifier activationVerifier,
+                             Supplier<PublicKey> vendorPublicKey, LicenseServerIdentityService identityService,
+                             LicenseRepository repository, TimeSource timeSource,
+                             RenewalImpactAssessment renewalImpact, boolean activationRequired) {
         this.licenseVerifier = licenseVerifier;
         this.activationVerifier = activationVerifier;
         this.vendorPublicKey = vendorPublicKey;
@@ -45,6 +54,7 @@ public final class ActivationService {
         this.repository = repository;
         this.timeSource = timeSource;
         this.renewalImpact = renewalImpact;
+        this.activationRequired = activationRequired;
     }
 
     public ActivationImportResult importArtifacts(SignedEnvelope licenseEnvelope, SignedEnvelope activationEnvelope) {
@@ -71,7 +81,11 @@ public final class ActivationService {
             return ActivationImportResult.denied(LicenseReasonCode.LICENSE_NOT_YET_VALID);
         if (now.isAfter(license.subscription().graceUntil()))
             return ActivationImportResult.denied(LicenseReasonCode.LICENSE_EXPIRED);
-        if (license.activation().required() && activationEnvelope == null) {
+        if (!activationRequired) {
+            repository.activate(identityService.publicIdentity(), license, licenseEnvelope, null, null, now);
+            return ActivationImportResult.accepted(repository.active().orElseThrow(), renewalImpact.warnings(license, now));
+        }
+        if (activationEnvelope == null) {
             var previous = current;
             var identity = identityService.publicIdentity();
             if (previous == null || previous.activation() == null || previous.activationEnvelope() == null
