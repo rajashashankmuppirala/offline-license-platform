@@ -88,7 +88,7 @@ class CommercialLicenseContractTest {
 
     @Test
     void publishedAndBundledSchemasAreByteForByteIdentical() throws Exception {
-        assertThat(Files.readString(Path.of("../../specs/001-central-offline-license-server/contracts/commercial-license.schema.json")))
+        assertThat(Files.readString(Path.of("../docs/contracts/commercial-license.schema.json")))
                 .isEqualTo(Files.readString(Path.of("src/main/resources/schema/commercial-license-1.0.schema.json")));
     }
 }
