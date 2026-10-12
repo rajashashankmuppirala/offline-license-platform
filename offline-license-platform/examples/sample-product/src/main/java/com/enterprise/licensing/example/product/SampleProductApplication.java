@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * A runnable example whose business code sees typed decisions and leases, never license JSON.
@@ -52,9 +53,9 @@ public final class SampleProductApplication {
 
         new SampleProductApplication(client).exercise(
                 environment.getOrDefault("SAMPLE_PRODUCT_USER", "sample-user"),
-                environment.getOrDefault("SAMPLE_PRODUCT_SESSION", "sample-session"),
+                environment.getOrDefault("SAMPLE_PRODUCT_SESSION", "sample-session-" + UUID.randomUUID()),
                 environment.getOrDefault("SAMPLE_PRODUCT_AGENT", "sample-agent"),
-                environment.getOrDefault("SAMPLE_PRODUCT_EXECUTION", "sample-execution"),
+                environment.getOrDefault("SAMPLE_PRODUCT_EXECUTION", "sample-execution-" + UUID.randomUUID()),
                 environment.getOrDefault("SAMPLE_PRODUCT_REQUEST_ID", "sample-ai-request"), System.out);
     }
 
@@ -113,6 +114,7 @@ public final class SampleProductApplication {
         RegisteredProductInstance instance = licenses.register(
                 DeploymentType.OTHER, EnvironmentType.PRODUCTION, ProductId.VALIDATOR,
                 "1.0.0", Map.of("application", "sample-product"));
+        if (instance.state() == InstanceState.REGISTERED) instance = licenses.activateInstance();
         require(instance.state() == InstanceState.ACTIVE, "Sample product instance is not ACTIVE");
         out.println("INSTANCE ACTIVE " + instance.instanceId());
 
@@ -121,6 +123,10 @@ public final class SampleProductApplication {
         requireAllowed(tableau(), "TABLEAU feature");
         out.println("FEATURE TABLEAU LICENSE_VALID");
         requireAllowed(licenses.productUserCapacity(ProductId.VALIDATOR, user), "VALIDATOR user capacity");
+
+        RegisteredAgent registeredAgent = licenses.registerAgent(agent, "Sample autonomous agent");
+        require(registeredAgent.status() == AgentStatus.ACTIVE, "Sample agent is not ACTIVE");
+        out.println("AI_AGENT ACTIVE " + registeredAgent.agentId());
 
         try (UserLeaseManager userLease = login(user, session)) {
             require(userLease.valid(), "User lease was not active after acquisition");

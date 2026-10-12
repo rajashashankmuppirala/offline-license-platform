@@ -42,8 +42,8 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 cd "$ROOT"
-mvn -q -pl examples/sample-product -am -DskipTests package
-mvn -q -pl examples/sample-product dependency:build-classpath -Dmdep.outputFile=target/runtime-classpath.txt
+mvn -q -pl examples/sample-product -am -DskipTests package dependency:build-classpath \
+  -Dmdep.outputFile=target/runtime-classpath.txt
 
 runtime_classpath="$ROOT/examples/sample-product/target/classes:$(sed -n '1p' "$CLASSPATH_FILE")"
 java -cp "$runtime_classpath" "$MAIN_CLASS" &

@@ -28,6 +28,7 @@ class SampleProductApplicationTest {
                 "INSTANCE ACTIVE instance-1",
                 "PRODUCT VALIDATOR LICENSE_VALID",
                 "FEATURE TABLEAU LICENSE_VALID",
+                "AI_AGENT ACTIVE agent-1",
                 "USER_LEASE ACTIVE user-lease-1",
                 "AI_EXECUTION_LEASE ACTIVE agent-lease-1",
                 "AI_METER ACCEPTED 1/100",
@@ -55,7 +56,20 @@ class SampleProductApplicationTest {
                                                   ProductId product, String version, Map<String, String> metadata) {
             var key = new EncodedPublicKey("Ed25519", "X.509", "AA");
             return new RegisteredProductInstance("instance-1", key, "fingerprint", product, deployment,
-                    environment, version, InstanceState.ACTIVE, now, now, null, metadata);
+                    environment, version, InstanceState.REGISTERED, now, now, null, metadata);
+        }
+
+        @Override
+        public RegisteredProductInstance activateInstance() {
+            var key = new EncodedPublicKey("Ed25519", "X.509", "AA");
+            return new RegisteredProductInstance("instance-1", key, "fingerprint", ProductId.VALIDATOR,
+                    DeploymentType.OTHER, EnvironmentType.PRODUCTION, "1.0.0", InstanceState.ACTIVE,
+                    now, now, null, Map.of());
+        }
+
+        @Override
+        public RegisteredAgent registerAgent(String agentId, String displayName) {
+            return new RegisteredAgent(agentId, displayName, "instance-1", now, AgentStatus.ACTIVE);
         }
 
         @Override

@@ -9,6 +9,16 @@ public interface LicenseClient {
 
     RegisteredProductInstance register(DeploymentType deployment, EnvironmentType environment, ProductId product, String version, Map<String, String> metadata);
 
+    /** Administrator-authorized transition of this client's instance to ACTIVE. */
+    default RegisteredProductInstance activateInstance() {
+        throw new UnsupportedOperationException("Instance activation is not supported by this client");
+    }
+
+    /** Administrator-authorized registration of an agent belonging to this client's instance. */
+    default RegisteredAgent registerAgent(String agentId, String displayName) {
+        throw new UnsupportedOperationException("Agent registration is not supported by this client");
+    }
+
     LicenseDecision product(ProductId product);
 
     LicenseDecision feature(ProductId product, FeatureId feature);

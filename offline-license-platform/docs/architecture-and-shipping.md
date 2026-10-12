@@ -113,7 +113,7 @@ AI/AEU consumption remain central-authority operations; the POC grants no offlin
 `DefaultLicenseClient` lives in the `license-client-java` module and is instantiated inside the product JVM. In the local
 demo, `examples/sample-product` creates it in `SampleProductApplication.main`; in a real integration, the customer product
 creates the same client (or another `LicenseClient` implementation) and calls it from its own business code. The client
-holds the product instance identity, signs requests, sends them to the server, verifies responses and cached entitlements,
+holds the product instance identity, signs requests, sends them to the server, parses typed decisions, verifies cached entitlements,
 and exposes typed decisions and lease/usage methods. The License Server is a separate Spring Boot process and owns the
 authoritative SQLite state.
 
@@ -125,14 +125,19 @@ tampered state.
 ## DR, backup, and Kubernetes semantics
 
 Instances have explicit `REGISTERED`, `STANDBY`, `ACTIVE`, and `DECOMMISSIONED` states. `switchActive` is an atomic
-failover/failback operation and is audited. Backups use SQLite `VACUUM INTO`; restore stages the file, runs integrity and
-identity checks, and only then replaces the active database through the authenticated operational path.
+failover/failback operation and is audited. Backups use SQLite `VACUUM INTO`. The authenticated API creates backups and
+validates their SQLite consistency and installation binding; it does not replace a live database. The offline restore
+helper requires the server to be stopped. A database restored from an older snapshot may disagree with the external
+signed checkpoints and enter recovery mode; database validation alone does not establish full recoverability.
 
 The Kubernetes example models one logical product installation with a shared durable identity mounted by replicas.
 Replica churn therefore does not consume additional environment capacity. It is a simulator, not a Kubernetes operator or
 container deployment, and it does not claim to protect secrets from a cluster administrator.
 
 ## Local demo: what to run
+
+For a detailed, two-mode walkthrough (validation-only first, then activation-required), see
+[local-run-and-demo.md](local-run-and-demo.md).
 
 From the repository root:
 
@@ -141,16 +146,14 @@ From the repository root:
 ./scripts/poc-demo-local.sh
 ```
 
-The demo script builds the shaded issuer CLI and server, creates a temporary state directory, issues the sample
-license, starts the server in loopback mode, performs activation, and runs the sample product. Its checks cover:
+The demo script runs eight groups of Maven tests and prints 40 numbered milestones only after their scenario group
+passes. It exercises temporary databases and, in the process tests, real server JVMs. It is an automated acceptance
+presentation, not a persistent interactive installation. Run `./scripts/poc-demo-local.sh --list` to preview its narrative.
+Use the detailed local guide to launch a persistent server, exchange files, and run the sample product yourself.
 
-1. unactivated status and offline activation-request generation;
-2. vendor issue/verify/inspect and activation import;
-3. environment registration and product/feature entitlement checks;
-4. user lease, agent execution lease, heartbeat/release, and pool-denial behavior;
-5. AI/AEU meter consumption, idempotent retry, and limit denial;
-6. signed cached-entitlement creation and outage verification;
-7. audit/reason-code output, backup, restore validation, and clean shutdown.
+Its assertions cover issuance, activation binding, tampering, environment and user capacity, Kubernetes logical
+identities, agent limits, atomic metering, cache outage behavior, restart persistence, expiry, rollback, and decision audits.
+Backup validation is covered by the full Maven suite rather than a numbered milestone in this script.
 
 Useful focused entry points are `run-license-server-local.sh`, `run-sample-product-local.sh`, `customer-cli.sh`,
 `backup-license-server.sh`, `restore-license-server.sh`, and `verify-runtime-artifacts.sh`. The latter scans packaged
@@ -159,15 +162,16 @@ into runtime artifacts.
 
 ## Build and shipped operational artifacts
 
-`mvn clean test` builds all modules and runs the unit, integration, concurrency, security, outage, and artifact-isolation
+`mvn clean verify` packages all modules and runs the unit, integration, concurrency, security, outage, and artifact-isolation
 tests. The issuer module produces a shaded executable JAR. The server module produces the runnable Spring Boot JAR.
-Local scripts package these outputs under a temporary or selected state directory; they do not require Docker, a database
-service, or Internet access after Maven dependencies are available.
+Build artifacts remain in each module’s `target/` directory. Local runtime state is written to the selected database
+and identity paths; the helper scripts track processes and logs under `.local/`. No Docker or database service is required.
 
-Configuration is supplied by `deployment/local/application-local.yml` and environment variables for paths, ports,
+The server automatically loads its bundled `license-server/src/main/resources/application.yml` and environment variables for paths, ports,
 admin token, trusted vendor key, clock tolerance, cache lifetime, lease durations, and meter weights. For a real customer
 deployment, use TLS, an external secret-management process, restrictive filesystem permissions, scheduled backups, and
-operator-controlled key rotation; the local profile intentionally uses loopback HTTP to keep the demo easy to run.
+operator-controlled key rotation. The defaults use loopback HTTP. `deployment/local/application-local.yml` is an optional
+example file; the launcher does not automatically load it.
 
 ## What this POC proves—and what it does not
 

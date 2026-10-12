@@ -77,6 +77,33 @@ public final class DefaultLicenseClient implements LicenseClient {
     }
 
     @Override
+    public RegisteredProductInstance activateInstance() {
+        try {
+            var root = root(admin("POST", "/api/v1/license/admin/instances/" + identity.identity().instanceId() + "/activate", new byte[0]));
+            ensure(root);
+            return mapper.treeToValue(root.path("data").path("instance"), RegisteredProductInstance.class);
+        } catch (LicenseClientDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw unavailable(e);
+        }
+    }
+
+    @Override
+    public RegisteredAgent registerAgent(String agentId, String displayName) {
+        try {
+            var input = Map.of("agentId", agentId, "displayName", displayName, "instanceId", identity.identity().instanceId());
+            var root = root(admin("POST", "/api/v1/license/admin/agents", mapper.writeValueAsBytes(input)));
+            ensure(root);
+            return mapper.treeToValue(root.path("data").path("agent"), RegisteredAgent.class);
+        } catch (LicenseClientDeniedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw unavailable(e);
+        }
+    }
+
+    @Override
     public LicenseDecision product(ProductId product) {
         String path = "/api/v1/license/runtime/entitlements/products/" + product.value();
         try {
